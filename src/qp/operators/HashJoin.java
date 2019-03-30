@@ -34,9 +34,9 @@ public class HashJoin extends Join {
     int currentFileNum;
     int[] partitionLeftPageCounts, partitionsRightPageCounts;
 
-    int partitionCurs; // Cursor for the next partition
-    int rPageCurs; // Cursor for next right page
-    int rTupleCurs; // Cursor for next tuple in the right page to be probed
+    int partitionCurs; // Current partition cursor
+    int rPageCurs; // Current right page cursor
+    int rTupleCurs; // Last probed tuple in the right page
 
 //    ObjectInputStream in; // File pointer to the right hand materialized file
 //
@@ -79,21 +79,23 @@ public class HashJoin extends Join {
 
         // Setup Buffer for hash table
         inputBuffer = new Batch(Batch.getPageSize() / left.schema.getTupleSize());
-        outputBuffer = new Batch(Batch.getPageSize() / schema.getTupleSize());
         hashTable = new Batch[numBuff - 2];
         for (int i = 0; i < numBuff - 2; i++) {
             hashTable[i] = new Batch(Batch.getPageSize() / left.schema.getTupleSize());
         }
 
-        // Setup first hash table (look for non-empty partition)
+        // Build first hash table (from a non-empty partition)
+        partitionCurs = -1;
         for (int i = 0; i < partitionLeftPageCounts.length; i++) {
             if (populateHashTable(i)) {
-                partitionCurs = i + 1;
+                partitionCurs = i;
                 break;
             }
         }
-        rPageCurs = 0;
-        rTupleCurs = 0;
+        rPageCurs = -1;
+        rTupleCurs = -1;
+        // Prepare input buffer for reading of right
+        inputBuffer = new Batch(Batch.getPageSize() / right.schema.getTupleSize());
 
         return true;
     }
@@ -106,29 +108,53 @@ public class HashJoin extends Join {
 
 
     public Batch next() {
-        // Probing Phase
-        inputBuffer = new Batch(Batch.getPageSize() / right.schema.getTupleSize());
+        // Prepare (clean) output buffer for new set of joined tuples
+        outputBuffer = new Batch(Batch.getPageSize() / schema.getTupleSize());
 
-        int pageCount = partitionsRightPageCounts[partitionCurs - 1];
-        // Read all pages of the partition from right
-        for (int p = 0; p < pageCount; p++) {
-            // For each page of a particular right partition
-            // Read the page
-            String fileName = generateFileName(partitionCurs - 1, p, false);
-            if (!pageRead(inputBuffer, fileName)) {
-                // Error reading partition
-                System.exit(1);
+        for (int parti = partitionCurs; parti < partitionLeftPageCounts.length; parti++) {
+            // BUILDING PHASE
+            if (parti != partitionCurs) {
+                // Probing partition[parti], but hash table (is at partitionCurs) not updated
+                if (populateHashTable(parti)) {
+                    partitionCurs = parti;
+                } else {
+                    // Error reading partition or no tuple in the left of this partition
+                    // Move to next partition to build hash table
+                    break;
+                }
             }
 
-            // For each tuple
-            for (int t = 0; t < inputBuffer.size(); t++) {
-                Tuple tuple = inputBuffer.elementAt(t);
-                int hash = hashFn2(tuple, rightindex, hashTable.length);
-                // Find match in hash table
-//                hashTable[hash]
-            }
+            // PROBING PHASE
+            // Read all pages of the partition from right
+            for (int p = rPageCurs; p < partitionsRightPageCounts[partitionCurs]; p++) {
+                // For each page of a particular right partition
+                // Read the page
+                String fileName = generateFileName(partitionCurs, p, false);
+                if (!pageRead(inputBuffer, fileName)) {
+                    // Error reading partition
+                    System.exit(1);
+                }
 
+                // For each tuple
+                for (int t = rTupleCurs + 1; t < inputBuffer.size(); t++) {
+                    Tuple tuple = inputBuffer.elementAt(t);
+                    // Find match in hash table
+                    Tuple foundTupleLeft = findMatchInHashtable(hashTable, leftindex, tuple, rightindex);
+                    if (foundTupleLeft != null) {
+                        outputBuffer.add(foundTupleLeft.joinWith(tuple));
+
+                        // Return output buffer, if full
+                        if (outputBuffer.isFull()) {
+                            rPageCurs = p;
+                            rTupleCurs = t;
+                            return outputBuffer;
+                        }
+                    }
+                }
+            }
         }
+        // End of probing
+        return outputBuffer;
     }
 
 
@@ -136,6 +162,7 @@ public class HashJoin extends Join {
      * Close the operator
      */
     public boolean close() {
+
         return true;
     }
 
@@ -225,9 +252,21 @@ public class HashJoin extends Join {
     }
 
     private boolean populateHashTable(int partitionNum) {
+
+        // Array out of bound
+        if (partitionNum >= partitionLeftPageCounts.length) {
+            return false;
+        }
+
         int pageCount = partitionLeftPageCounts[partitionNum];
         if (pageCount < 1) {
             return false;
+        }
+
+        // Clean old hash table tuples
+        hashTable = new Batch[numBuff - 2];
+        for (int i = 0; i < numBuff - 2; i++) {
+            hashTable[i] = new Batch(Batch.getPageSize() / left.schema.getTupleSize());
         }
 
         // Read all pages of the partition from left
@@ -251,6 +290,17 @@ public class HashJoin extends Join {
             }
         }
         return true;
+    }
+
+    private Tuple findMatchInHashtable(Batch[] hashTable, int hashAttriIndex, Tuple tuple, int tupleIndex) {
+        int hash = hashFn2(tuple, tupleIndex, hashTable.length);
+        for (int i = 0; i < hashTable[hash].size(); i++) {
+            Tuple tupleInHash = hashTable[hash].elementAt(i);
+            if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
+                return tupleInHash;
+            }
+        }
+        return null;
     }
 
 }
