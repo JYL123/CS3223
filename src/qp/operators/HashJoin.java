@@ -135,6 +135,7 @@ public class HashJoin extends Join {
             // Read all pages of the partition from right
             for (int p = rPageCurs; p < partitionsRightPageCounts[partitionCurs]; p++) {
                 // For each page of a particular right partition
+                rPageCurs = p;
                 // Read the page
                 String fileName = generateFileName(partitionCurs, p, false);
                 if (!pageRead(fileName)) {
@@ -144,6 +145,7 @@ public class HashJoin extends Join {
 
                 // For each tuple
                 for (int t = rTupleCurs + 1; t < inputBuffer.size(); t++) {
+                    rTupleCurs = t;
                     Tuple tuple = inputBuffer.elementAt(t);
                     // Find match(s) in hash table
                     Tuple foundTupleLeft;
@@ -151,13 +153,14 @@ public class HashJoin extends Join {
                         outputBuffer.add(foundTupleLeft.joinWith(tuple));
                         // Return output buffer, if full
                         if (outputBuffer.isFull()) {
-                            rPageCurs = p;
+                            // rPageCurs = p;
                             rTupleCurs = t - 1; // Come back to this tuple as there might be other matches in the
                             // same bucket
                             return outputBuffer;
                         }
                     }
                 }
+                rTupleCurs = -1;
             }
             rPageCurs = 0;
             rTupleCurs = -1;
