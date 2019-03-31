@@ -31,8 +31,6 @@ public class HashJoin extends Join {
     Batch outputBuffer;
     Batch[] hashTable;
 
-//    String rfname;    // The file name where the right table is materialize
-
     static int filenum = -1;   // To get unique filenum for this operation
     int currentFileNum;
     ArrayList<String> fileNames = new ArrayList<>();
@@ -42,13 +40,6 @@ public class HashJoin extends Join {
     int rPageCurs; // Current right page cursor
     int rTupleCurs; // Last probed tuple in the right page
     int lTupleCurs; // Last checked tuple in a particular bucket of the hash table
-
-//    ObjectInputStream in; // File pointer to the right hand materialized file
-//
-//    int lcurs;    // Cursor for left side buffer
-//    int rcurs;    // Cursor for right side buffer
-//    boolean eosl;  // Whether end of stream (left table) is reached
-//    boolean eosr;  // End of stream (right table)
 
     public HashJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getCondition(), jn.getOpType());
@@ -92,7 +83,7 @@ public class HashJoin extends Join {
         // Build first hash table (from a non-empty partition)
         partitionCurs = -1;
         for (int i = 0; i < partitionLeftPageCounts.length; i++) {
-            if (populateHashTable(i)) {
+            if (buildHashTable(i)) {
                 partitionCurs = i;
                 break;
             }
@@ -122,7 +113,7 @@ public class HashJoin extends Join {
             // BUILDING PHASE
             if (parti != partitionCurs) {
                 // Probing partition[parti], but hash table (is at partitionCurs) not updated
-                if (populateHashTable(parti)) {
+                if (buildHashTable(parti)) {
                     partitionCurs = parti;
                 } else {
                     // Error reading partition or no tuple in the left of this partition
@@ -302,7 +293,7 @@ public class HashJoin extends Join {
         return true;
     }
 
-    private boolean populateHashTable(int partitionNum) {
+    private boolean buildHashTable(int partitionNum) {
 
         // Array out of bound
         if (partitionNum >= partitionLeftPageCounts.length) {
