@@ -11,7 +11,7 @@ public class DynamicOptimizer{
 
     SQLQuery sqlquery;
 
-    public RandomOptimizer(SQLQuery sqlquery){
+    public DynamicOptimizer(SQLQuery sqlquery){
         this.sqlquery = sqlquery;
     }
 
