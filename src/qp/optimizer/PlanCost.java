@@ -152,7 +152,8 @@ public class PlanCost{
 	    joincost = 0;
 	    break;
 	case JoinType.HASHJOIN:
-	    joincost = 0;
+	    joincost = 1;
+	    //TODO
 	    break;
 	default:
 	    joincost=0;
