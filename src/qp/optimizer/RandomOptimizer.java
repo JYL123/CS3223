@@ -426,7 +426,6 @@ public class RandomOptimizer {
                     hj.setLeft(left);
                     hj.setRight(right);
                     hj.setNumBuff(numbuff);
-                    //TODO
                     return hj;
                 default:
                     return node;

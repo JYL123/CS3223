@@ -152,8 +152,7 @@ public class PlanCost{
 	    joincost = 0;
 	    break;
 	case JoinType.HASHJOIN:
-	    joincost = 1;
-	    //TODO
+	    joincost = 3 * (leftpages + rightpages);
 	    break;
 	default:
 	    joincost=0;
