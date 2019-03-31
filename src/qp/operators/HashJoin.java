@@ -127,7 +127,7 @@ public class HashJoin extends Join {
                 } else {
                     // Error reading partition or no tuple in the left of this partition
                     // Move to next partition to build hash table
-                    break;
+                    continue;
                 }
             }
 
@@ -293,7 +293,7 @@ public class HashJoin extends Join {
         for (int i = 0; i < partitions.length; i++) {
             Batch partition = partitions[i];
             if (partition.isEmpty()) {
-                break;
+                continue;
             }
             String fileName = generateFileName(i, partitionsCount[i], isLeft);
             pageWrite(partition, fileName);
