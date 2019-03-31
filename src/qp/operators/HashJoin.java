@@ -4,11 +4,14 @@
 
 package qp.operators;
 
+import java.io.EOFException;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Objects;
 
 import qp.utils.Attribute;
@@ -19,7 +22,7 @@ public class HashJoin extends Join {
 
     /**
      * The following fields are useful during execution of
-     * * the NestedJoin operation
+     * * the Hash Join operation
      **/
     int leftindex;     // Index of the join attribute in left table
     int rightindex;    // Index of the join attribute in right table
@@ -32,11 +35,13 @@ public class HashJoin extends Join {
 
     static int filenum = -1;   // To get unique filenum for this operation
     int currentFileNum;
+    ArrayList<String> fileNames = new ArrayList<>();
     int[] partitionLeftPageCounts, partitionsRightPageCounts;
 
     int partitionCurs; // Current partition cursor
     int rPageCurs; // Current right page cursor
     int rTupleCurs; // Last probed tuple in the right page
+    int lTupleCurs; // Last checked tuple in a particular bucket of the hash table
 
 //    ObjectInputStream in; // File pointer to the right hand materialized file
 //
@@ -92,10 +97,12 @@ public class HashJoin extends Join {
                 break;
             }
         }
-        rPageCurs = -1;
+        rPageCurs = 0;
         rTupleCurs = -1;
-        // Prepare input buffer for reading of right
+        lTupleCurs = -1;
+        // Prepare buffer for reading of right and output of joined tuples
         inputBuffer = new Batch(Batch.getPageSize() / right.schema.getTupleSize());
+        outputBuffer = new Batch(Batch.getPageSize() / schema.getTupleSize());
 
         return true;
     }
@@ -109,7 +116,7 @@ public class HashJoin extends Join {
 
     public Batch next() {
         // Prepare (clean) output buffer for new set of joined tuples
-        outputBuffer = new Batch(Batch.getPageSize() / schema.getTupleSize());
+        outputBuffer.clear();
 
         for (int parti = partitionCurs; parti < partitionLeftPageCounts.length; parti++) {
             // BUILDING PHASE
@@ -130,7 +137,7 @@ public class HashJoin extends Join {
                 // For each page of a particular right partition
                 // Read the page
                 String fileName = generateFileName(partitionCurs, p, false);
-                if (!pageRead(inputBuffer, fileName)) {
+                if (!pageRead(fileName)) {
                     // Error reading partition
                     System.exit(1);
                 }
@@ -138,22 +145,28 @@ public class HashJoin extends Join {
                 // For each tuple
                 for (int t = rTupleCurs + 1; t < inputBuffer.size(); t++) {
                     Tuple tuple = inputBuffer.elementAt(t);
-                    // Find match in hash table
-                    Tuple foundTupleLeft = findMatchInHashtable(hashTable, leftindex, tuple, rightindex);
-                    if (foundTupleLeft != null) {
+                    // Find match(s) in hash table
+                    Tuple foundTupleLeft;
+                    while ((foundTupleLeft = findMatchInHashtable(hashTable, leftindex, tuple, rightindex)) != null) {
                         outputBuffer.add(foundTupleLeft.joinWith(tuple));
-
                         // Return output buffer, if full
                         if (outputBuffer.isFull()) {
                             rPageCurs = p;
-                            rTupleCurs = t;
+                            rTupleCurs = t - 1; // Come back to this tuple as there might be other matches in the
+                            // same bucket
                             return outputBuffer;
                         }
                     }
                 }
             }
+            rPageCurs = 0;
+            rTupleCurs = -1;
         }
         // End of probing
+        if (outputBuffer.isEmpty()) {
+            close();
+            return null;
+        }
         return outputBuffer;
     }
 
@@ -162,6 +175,20 @@ public class HashJoin extends Join {
      * Close the operator
      */
     public boolean close() {
+        // Delete all partition files
+        for (int i = 0; i < fileNames.size(); i++) {
+            File f = new File(fileNames.get(i));
+            f.delete();
+        }
+
+        inputBuffer.clear();
+        inputBuffer = null;
+        outputBuffer.clear();
+        outputBuffer = null;
+        for (int i = 0; i < numBuff - 2; i++) {
+            hashTable[i].clear();
+        }
+        hashTable = null;
 
         return true;
     }
@@ -182,6 +209,7 @@ public class HashJoin extends Join {
         try {
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
             out.writeObject(b);
+            fileNames.add(fileName);
             out.close();
         } catch (IOException io) {
             System.out.println("Hash Join : writing the temporary file error === " + fileName);
@@ -190,13 +218,32 @@ public class HashJoin extends Join {
         return true;
     }
 
-    private boolean pageRead(Batch b, String fileName) {
+    private boolean pageRead(String fileName) {
+        ObjectInputStream in;
         try {
-            ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName));
+            in = new ObjectInputStream(new FileInputStream(fileName));
         } catch (IOException io) {
             System.err.println("Hash Join : error in reading the file === " + fileName);
             return false;
         }
+
+        try {
+            this.inputBuffer = (Batch) in.readObject();
+            in.close();
+        } catch (EOFException e) {
+            try {
+                in.close();
+            } catch (IOException io) {
+                System.out.println("Hash Join :Error in temporary file reading === " + fileName);
+            }
+        } catch (ClassNotFoundException c) {
+            System.out.println("Hash Join :Some error in deserialization  === " + fileName);
+            System.exit(1);
+        } catch (IOException io) {
+            System.out.println("Hash Join :temporary file reading error  === " + fileName);
+            System.exit(1);
+        }
+
         return true;
     }
 
@@ -233,6 +280,7 @@ public class HashJoin extends Join {
                     String fileName = generateFileName(bucket, partitionsCount[bucket], isLeft);
                     pageWrite(partition, fileName);
                     partitionsCount[bucket]++;
+                    partition.clear();
                 }
                 partition.insertElementAt(t, partition.size());
             }
@@ -264,18 +312,16 @@ public class HashJoin extends Join {
         }
 
         // Clean old hash table tuples
-        hashTable = new Batch[numBuff - 2];
         for (int i = 0; i < numBuff - 2; i++) {
-            hashTable[i] = new Batch(Batch.getPageSize() / left.schema.getTupleSize());
+            hashTable[i].clear();
         }
 
         // Read all pages of the partition from left
         for (int p = 0; p < pageCount; p++) {
             // Read a page of a partition
             String fileName = generateFileName(partitionNum, p, true);
-            if (!pageRead(inputBuffer, fileName)) {
+            if (!pageRead(fileName)) {
                 // Error reading partition
-                System.out.println("Hash Join : reading the file error === " + fileName);
                 System.exit(1);
             }
 
@@ -294,12 +340,14 @@ public class HashJoin extends Join {
 
     private Tuple findMatchInHashtable(Batch[] hashTable, int hashAttriIndex, Tuple tuple, int tupleIndex) {
         int hash = hashFn2(tuple, tupleIndex, hashTable.length);
-        for (int i = 0; i < hashTable[hash].size(); i++) {
+        for (int i = lTupleCurs + 1; i < hashTable[hash].size(); i++) {
             Tuple tupleInHash = hashTable[hash].elementAt(i);
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
+                lTupleCurs = i;
                 return tupleInHash;
             }
         }
+        lTupleCurs = -1;
         return null;
     }
 
