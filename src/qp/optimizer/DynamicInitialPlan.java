@@ -182,7 +182,7 @@ public class DynamicInitialPlan{
             joins.put(lefttab, rightTableWithCon);
         }
 
-        /** to form all set of plans of size i, evaluate their cost, retain the cheapest plan of size i**/
+        /** to form all set of plans of size i, evaluate their cost, retain the cheapest plan for each combination**/
         for (int i = 2; i <= joinTablesList.size(); i ++) {
             ArrayList<ArrayList<String>> combinations = getCombinations(joinTablesList, i);
 
@@ -195,12 +195,12 @@ public class DynamicInitialPlan{
                 double minCost = Double.MAX_VALUE;
 
                 ArrayList<ArrayList<ArrayList<String>>> plans= generatePlans(combination);
+                ArrayList<String> lhsJoin = plans.get(j).get(0);
+                ArrayList<String> rhsJoin = plans.get(j).get(1);
+
+                int joinType = 0; //nestedLoop
 
                 for (int j=0; j<plans.size(); j++) {
-                    ArrayList<String> lhsJoin = plans.get(j).get(0);
-                    ArrayList<String> rhsJoin = plans.get(j).get(1);
-
-                    int joinType = 0; //nestedLoop
 
                     double cost = joinPlanCost(lhsJoin, rhsJoin, joinType);
 
@@ -212,10 +212,28 @@ public class DynamicInitialPlan{
                     }
                 }
 
+                /** record down the min cost for this combination*/
                 costTable.put(combination, minCost);
+
+                /** join table, use tab_op_hash as joinPan set*/
+                Operator left = (Operator) tab_op_hash.get(lhsJoin);
+                Operator right = (Operator) tab_op_hash.get(rhsJoin);
+                Join jn = new Join(left,right,cn,OpType.JOIN);
+                Schema newsche = left.getSchema().joinWith(right.getSchema());
+                jn.setSchema(newsche);
+                jn.setJoinType(joinType);
+                modifyHashtable(left,jn);
+                modifyHashtable(right,jn);
             }
 
         }
+
+        /** The last join operation is the root for the
+         ** constructed till now
+         **/
+
+        if(numJoin !=0)
+            root = jn;
 
     }
 
@@ -302,9 +320,10 @@ public class DynamicInitialPlan{
         lhsPlanCost = costTable.get(lhsPlan);
         rhsPlanCost = costTable.get(rhsPlan);
 
-        /** TODO: get page numbers of joint tables from the combonation plans*/
+        /** TODO: get page numbers of joint tables from the combined plans*/
         int lhspages = 0;
         int rhspages = 0;
+
 
         double joinCost = 0;
         /** TODO: modify cost computation regarding to each join method*/
