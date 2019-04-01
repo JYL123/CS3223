@@ -17,8 +17,8 @@ public class DynamicOptimizer{
 
     public Operator getOptimizedPlan(){
 
-        DynamicInitialPlan dip = new DynamicInitialPlan(sqlquery);
-        return dip.prepareInitialPlan();
+        DynamicPlan dp = new DynamicPlan(sqlquery);
+        return dp.preparePlan();
     }
 
     /** AFter finding a choice of method for each operator
