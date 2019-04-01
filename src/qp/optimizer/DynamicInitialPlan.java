@@ -29,6 +29,7 @@ public class DynamicInitialPlan{
     HashMap<String, HashMap<String, ArrayList<Condition>>> joins; // all lefttable-joincondition-righttable relationships
     ArrayList<String> joinTablesList; // all distinct tables for a join condition
     HashMap<ArrayList<String>, double> costTable; //to record each combination and its min cost
+    HashMap<ArrayList<String>, int> intermediateTablePages; // to record down the number of pages in each intermeidate table
 
 
     public DynamicInitialPlan(SQLQuery sqlquery){
@@ -224,6 +225,11 @@ public class DynamicInitialPlan{
                 jn.setJoinType(joinType);
                 modifyHashtable(left,jn);
                 modifyHashtable(right,jn);
+
+                int leftpages = intermediateTablePages.get(lhsJoin);
+                int rightpages = intermediateTablePages.get(rhsJoin);
+                /** an estimated number of pages for the combination*/
+                tablePages.put(combination, leftpages+rightpages)
             }
 
         }
