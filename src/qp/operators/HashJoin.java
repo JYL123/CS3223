@@ -28,13 +28,13 @@ public class HashJoin extends Join {
     int rightindex;    // Index of the join attribute in right table
 
     Batch inputBuffer;
-    Batch outputBuffer;
-    Batch[] hashTable;
+    Batch outputBuffer; // Used in probing phase
+    Batch[] hashTable; // Build in probing phase
 
     static int filenum = -1;   // To get unique filenum for this operation
-    int currentFileNum;
-    ArrayList<String> fileNames = new ArrayList<>();
-    int[] partitionLeftPageCounts, partitionsRightPageCounts;
+    int currentFileNum; // Hash Join instance unique file num (to be used to generate output file name)
+    ArrayList<String> fileNames = new ArrayList<>(); // File names of all partitions generated during partition phase
+    int[] partitionLeftPageCounts, partitionsRightPageCounts; // File count per partition
 
     int partitionCurs; // Current partition cursor
     int rPageCurs; // Current right page cursor
@@ -48,7 +48,6 @@ public class HashJoin extends Join {
         numBuff = jn.getNumBuff();
     }
 
-
     public boolean open() {
         currentFileNum = ++filenum;
         Attribute leftattr = con.getLhs();
@@ -56,6 +55,7 @@ public class HashJoin extends Join {
         leftindex = left.getSchema().indexOf(leftattr);
         rightindex = right.getSchema().indexOf(rightattr);
 
+        // Partition buffers
         Batch[] partitions = new Batch[numBuff - 1];
         partitionLeftPageCounts = new int[numBuff - 1];
         partitionsRightPageCounts = new int[numBuff - 1];
@@ -73,7 +73,7 @@ public class HashJoin extends Join {
         // Destroy partition buffers
         partitions = null;
 
-        // Setup Buffer for hash table
+        // Setup Buffer for probing phase's hash table
         inputBuffer = new Batch(Batch.getPageSize() / left.schema.getTupleSize());
         hashTable = new Batch[numBuff - 2];
         for (int i = 0; i < numBuff - 2; i++) {
@@ -103,8 +103,6 @@ public class HashJoin extends Join {
      * from input buffers selects the tuples satisfying join condition
      * * And returns a page of output tuples
      **/
-
-
     public Batch next() {
         // Prepare (clean) output buffer for new set of joined tuples
         outputBuffer.clear();
@@ -151,8 +149,10 @@ public class HashJoin extends Join {
                         }
                     }
                 }
+                // End of page, reset tuple curs
                 rTupleCurs = -1;
             }
+            // End of partition, reset page and tuple curs
             rPageCurs = 0;
             rTupleCurs = -1;
         }
@@ -187,18 +187,40 @@ public class HashJoin extends Join {
         return true;
     }
 
+    /**
+     * Hash function used for partitioning.
+     *
+     * @param t          the tuple
+     * @param index      the index of the attribute to be hashed
+     * @param bucketSize the size of the partition
+     * @return partition to be hashed
+     */
     private int hashFn1(Tuple t, int index, int bucketSize) {
         final int PRIME = 769;
         Object value = t.dataAt(index);
         return (Objects.hash(value) * PRIME) % bucketSize;
     }
 
+    /**
+     * Hash function used for probing.
+     *
+     * @param t          the tuple
+     * @param index      the index of the attribute to be hashed
+     * @param bucketSize the size of the buckets in the hash table
+     * @return bucket to be hashed
+     */
     private int hashFn2(Tuple t, int index, int bucketSize) {
         final int PRIME = 12289;
         Object value = t.dataAt(index);
         return (Objects.hash(value) * PRIME) % bucketSize;
     }
 
+    /**
+     * Batch write out.
+     *
+     * @param b        page to be written out
+     * @param fileName name of the file
+     */
     private boolean pageWrite(Batch b, String fileName) {
         try {
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
@@ -212,6 +234,12 @@ public class HashJoin extends Join {
         return true;
     }
 
+    /**
+     * Read batch into input buffer.
+     *
+     * @param fileName name of the file to be read
+     * @return True if page has been read into input buffer
+     */
     private boolean pageRead(String fileName) {
         ObjectInputStream in;
         try {
@@ -241,6 +269,14 @@ public class HashJoin extends Join {
         return true;
     }
 
+    /**
+     * File name generator to standardize file name used in I/O
+     *
+     * @param partitionNum the partition of the tuple hashed
+     * @param pageNum      running page number from 0 to end of batch of the partition
+     * @param isLeft       the original operator of the tuples in stored file
+     * @return file name generated
+     */
     private String generateFileName(int partitionNum, int pageNum, boolean isLeft) {
         if (isLeft) {
             return String.format("HJtemp%d-LeftPartition%d-%d", currentFileNum, partitionNum,
@@ -252,6 +288,15 @@ public class HashJoin extends Join {
 
     }
 
+    /**
+     * Generate partitions of a operator (left or right) during partitioning phase.
+     *
+     * @param partitions      output buffers (each represent a paritition to be written when full)
+     * @param partitionsCount Count of each partition (to be updated when partition count increases)
+     * @param op              the operator to be partitioned
+     * @param index           the index of the attribute to be hashed
+     * @return true if partition is successful, or else false
+     */
     private boolean partition(Batch[] partitions, int[] partitionsCount, Operator op,
                               int index) {
         boolean isLeft = (op == left);
@@ -290,18 +335,27 @@ public class HashJoin extends Join {
             pageWrite(partition, fileName);
             partitionsCount[i]++;
         }
-        return true;
+
+        return op.close();
+
     }
 
+    /**
+     * Build hash table for a specific partition in preparation for probing.
+     *
+     * @param partitionNum the partition to build the hash table for
+     * @return True if hash table is built successfully, else false
+     */
     private boolean buildHashTable(int partitionNum) {
 
-        // Array out of bound
+        // Array out of bound, ensures partition exist
         if (partitionNum >= partitionLeftPageCounts.length) {
             return false;
         }
 
         int pageCount = partitionLeftPageCounts[partitionNum];
         if (pageCount < 1) {
+            // No records in partition to build hash table
             return false;
         }
 
@@ -332,15 +386,27 @@ public class HashJoin extends Join {
         return true;
     }
 
+    /**
+     * Find match in a bucket of the hash table.
+     * @param hashTable the hash table to be search in
+     * @param hashAttriIndex attribute index to be match against tuple in the hash table
+     * @param tuple search tuple
+     * @param tupleIndex attribute index to be match against for the tuple
+     * @return matching joined tuple
+     */
     private Tuple findMatchInHashtable(Batch[] hashTable, int hashAttriIndex, Tuple tuple, int tupleIndex) {
         int hash = hashFn2(tuple, tupleIndex, hashTable.length);
+
+        // Search for match in a specifc bucket of the hash table
         for (int i = lTupleCurs + 1; i < hashTable[hash].size(); i++) {
             Tuple tupleInHash = hashTable[hash].elementAt(i);
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
+                // Return back to curs to continue search
                 lTupleCurs = i;
                 return tupleInHash;
             }
         }
+        // End of search, reset curs
         lTupleCurs = -1;
         return null;
     }
