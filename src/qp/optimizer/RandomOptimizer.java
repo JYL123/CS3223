@@ -108,6 +108,7 @@ public class RandomOptimizer{
 
 		while(flag){   // flag = false when local minimum is reached
  System.out.println("---------------while--------");
+ 			/**TODO: Is unnecessary?*/
 		    Operator initPlanCopy = (Operator) initPlan.clone();
 		    minNeighbor = getNeighbor(initPlanCopy);
 
