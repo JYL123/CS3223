@@ -96,6 +96,7 @@ public class RandomInitialPlan{
 		System.err.println("RandomInitialPlan:Error reading Schema of the table" + filename);
 		System.exit(1);
 	    }
+	    /**TODO: why here we use put while use modifyHashTable in others? */
 	    tab_op_hash.put(tabname,op1);
 	}
 
