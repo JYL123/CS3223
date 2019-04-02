@@ -241,11 +241,11 @@ public class DynamicPlan{
             ArrayList<String> tableNameList = new ArrayList<String>();
             populateTableNameList(tableNameList);
 
-            /** each combnation consists of an array of table names*/
+            /** each combination consists of an array of table names*/
             ArrayList<ArrayList<String>> combinations = getCombinations(tableNameList, i);
 
 
-            /** compute cost for each permutation of tables of size i, get the min cost physical plan for the combination*/
+            /** compute cost for each combination of tables of size i, get the min cost physical plan for the combination*/
             for (ArrayList<String> combination : combinations) {
 
                 ArrayList<String> minLhsJoin = new ArrayList<>();
@@ -358,8 +358,8 @@ public class DynamicPlan{
         double lhsPlanCost = costTable.get(lhsPlan);
         double rhsPlanCost = costTable.get(rhsPlan);
 
-        String lhsPlanName = getCombinedAttributeName(lhsPlan);
-        String rhsPlanName = getCombinedAttributeName(rhsPlan);
+        String lhsPlanName = getCombinedTablesName(lhsPlan);
+        String rhsPlanName = getCombinedTablesName(rhsPlan);
 
         int lhspages= 0;
         int rhspages = 0;
@@ -393,7 +393,7 @@ public class DynamicPlan{
     }
 
     /** return a set of table's attriute, which will contain information used in cost computation*/
-    private ArrayList<Attribute> populateJointAttributesList(ArrayList<Attribute> joinTablesList){
+    private ArrayList<Attribute> populateJointAttributesList(ArrayList<Attribute> jointAttributesList){
 
         for (int i = 1; i <= joinlist.size(); i ++) {
             //costTable = new HashMap<ArrayList<String>, double>();
@@ -403,11 +403,11 @@ public class DynamicPlan{
             Attribute leftAttr = (Attribute) cn.getLhs();
             Attribute rightAttr = (Attribute) cn.getLhs();
 
-            if(!joinTablesList.contains(leftAttr)) joinTablesList.add(leftAttr);
-            if(!joinTablesList.contains(rightAttr)) joinTablesList.add(rightAttr);
+            if(!jointAttributesList.contains(leftAttr)) jointAttributesList.add(leftAttr);
+            if(!jointAttributesList.contains(rightAttr)) jointAttributesList.add(rightAttr);
         }
 
-        return joinTablesList;
+        return jointAttributesList;
     }
 
 
@@ -454,7 +454,10 @@ public class DynamicPlan{
         return jointTablesList;
     }
 
-    private String getCombinedAttributeName(ArrayList<String> combination) {
+    private String getCombinedTablesName(ArrayList<String> combination) {
+
+        /** sort combinations so that for each combination, there is a unique name for min cost retrival*/
+        Collections.sort(combination);
 
         String combinedName = "";
         for (String tab : combination) {
@@ -466,17 +469,29 @@ public class DynamicPlan{
 
     private Table joinTables(ArrayList<String> minLhsJoin, ArrayList<String> minRhsJoin) {
 
-        String lhsName = getCombinedAttributeName(minLhsJoin);
-        String rhsName = getCombinedAttributeName(minRhsJoin);
+        ArrayList<String> allPlans = new ArrayList<String>();
+        allPlans.addAll(minLhsJoin);
+        allPlans.addAll(minRhsJoin);
+
+        /** Sort names to make the unique for a combination*/
+        Collections.sort(allPlans);
+
 
         // new table name
-        String newTableName = lhsName + rhsName;
+        String newTableName = getCombinedTablesName(allPlans);
+
 
         Table leftTab = null;
         Table rightTab = null;
 
+        Collections.sort(minLhsJoin);
+        Collections.sort(minRhsJoin);
+
+        String lhsName = getCombinedTablesName(minLhsJoin);
+        String rhsName = getCombinedTablesName(minRhsJoin);
+
         for (Table table : jointTablesList) {
-            /** will it possible that the table is not in the list? */
+            /** TODO: will it possible that the table is not in the list? */
             if (table.getTableName().equals(lhsName)) leftTab = table;
             if (table.getTableName().equals(rhsName)) rightTab = table;
         }
@@ -491,7 +506,7 @@ public class DynamicPlan{
     }
 
 
-    // Table structure for cost computation
+    /**Table structure for cost computation*/
     class Table {
         int numTuples;
         String tableName;
