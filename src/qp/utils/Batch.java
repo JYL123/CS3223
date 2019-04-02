@@ -26,8 +26,8 @@ public class Batch implements Serializable{
 	/** Number of tuples per page **/
 
     public Batch(int numtuple){
-		MAX_SIZE=numtuple;
-	tuples = new Vector(MAX_SIZE);
+		MAX_SIZE = numtuple;
+	    tuples = new Vector(MAX_SIZE);
     }
 
 
@@ -38,7 +38,7 @@ public class Batch implements Serializable{
     }
 
     public int capacity(){
-	return MAX_SIZE;
+	    return MAX_SIZE;
 
     }
 
@@ -80,10 +80,10 @@ public class Batch implements Serializable{
     }
 
     public boolean isFull(){
-	if(size() == capacity())
-	    return true;
-	else
-	    return false;
+	    if(size() == capacity())
+	        return true;
+	    else
+	        return false;
     }
 }
 

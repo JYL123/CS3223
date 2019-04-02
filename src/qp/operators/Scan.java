@@ -73,11 +73,12 @@ public class Scan extends Operator {
 
 	Batch tuples = new Batch(batchsize);
 
-	while(!tuples.isFull()){
+
+        while(!tuples.isFull()){
 	    try {
 		Tuple data = (Tuple) in.readObject();
-		//System.out.print("SCAN:");
-		//Debug.PPrint(data);
+//		System.out.print("SCAN:");
+//		Debug.PPrint(data);
 		tuples.add(data);
 	    }catch(ClassNotFoundException cnf){
 		System.err.println("Scan:Class not found for reading file  "+filename);

@@ -120,7 +120,6 @@ public class NestedJoin extends Join{
 	}
 	outbatch = new Batch(batchsize);
 
-
 	while(!outbatch.isFull()){
 
 	    if(lcurs==0 && eosr==true){

@@ -210,7 +210,7 @@ public class RandomInitialPlan{
             else {
                 newSchema = base.getSchema().subSchema(projectlist);
             }
-            root = new Distinct(base, OpType.DISTINCT);
+            root = new Distinct(base, OpType.DISTINCT, projectlist);
             root.setSchema(newSchema);
         }
         else if(!projectlist.isEmpty()){
