@@ -11,6 +11,9 @@ import java.util.Vector;
 import java.util.BitSet;
 import java.util.Hashtable;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class DynamicPlan{
 
@@ -30,8 +33,10 @@ public class DynamicPlan{
     HashMap<String, HashMap<String, ArrayList<Condition>>> joins; // all lefttable-joincondition-righttable relationships
     ArrayList<Table> jointTablesList; // stores all tables
     ArrayList<Attribute> jointAttributesList; // all distinct table's attribute for a join condition
-    HashMap<ArrayList<String>, double> costTable; //to record each combination and its min cost
-    HashMap<ArrayList<String>, int> intermediateTablePages; // to record down the number of pages in each intermeidate table
+    ArrayList<String> tableNameList; // list of table names
+    HashMap<ArrayList<String>, Double> costTable; //to record each combination and its min cost
+    HashMap<ArrayList<String>, Integer> intermediateTablePages; // to record down the number of pages in each intermeidate table
+    ArrayList<String> currentResult;
 
 
     public DynamicPlan(SQLQuery sqlquery){
@@ -44,13 +49,44 @@ public class DynamicPlan{
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
 
+        if(numJoin != 0){
 
-        /** created for JOIN*/
-        jointAttributesList = new ArrayList<Attribute>();
-        populateJointAttributesList(jointAttributesList);
-        costTable = new HashMap<ArrayList<String>, double>();
-        jointTablesList = new ArrayList<Table>();
-        populateJointTableList(jointTablesList);
+            /** created for JOIN*/
+            jointAttributesList = new ArrayList<Attribute>();
+            populateJointAttributesList(jointAttributesList);
+            jointTablesList = new ArrayList<Table>();
+            populateJointTableList(jointTablesList);
+            for (Table table : jointTablesList) {
+                System.out.println("This is one table: ");
+                System.out.println(table.getTableName());
+                System.out.println(table.getNumTuples());
+                System.out.println(table.getSchema());
+            }
+
+
+            costTable = new HashMap<ArrayList<String>, Double>();
+            populateCostTable(costTable);
+            /** debug: print cost table*/
+            for (ArrayList<String> tablelist : costTable.keySet()) {
+                System.out.println("This is one cost entry, table: ");
+                for (String table : tablelist) {
+                    System.out.print(table + " ");
+                }
+            }
+            for (Double cost : costTable.values()) {
+                System.out.println("This is one cost entry, cost: ");
+
+                System.out.println(cost + " ");
+
+            }
+
+            tableNameList = new ArrayList<String>();
+            populateTableNameList(tableNameList);
+            System.out.println("Table names in table name list: ");
+            for (String tableName : tableNameList) {
+                System.out.println(tableName);
+            }
+        }
     }
 
     /** number of join conditions **/
@@ -65,10 +101,18 @@ public class DynamicPlan{
         tab_op_hash = new Hashtable();
 
         createScanOp();
+        System.out.println("root after scan is: ");
+        System.out.println(root);
+
         createSelectOp();
+        System.out.println("root after select is: ");
+        System.out.println(root);
         if(numJoin !=0){
             createJoinOp();
+            System.out.println("root after join is: ");
+            System.out.println(root);
         }
+
         createProjectOp();
         return root;
     }
@@ -148,111 +192,64 @@ public class DynamicPlan{
             root = op1;
     }
 
-    public void createProjectOp(){
-        Operator base = root;
-        if ( projectlist == null )
-            projectlist = new Vector();
-
-        if(!projectlist.isEmpty()){
-            root = new Project(base,projectlist,OpType.PROJECT);
-            Schema newSchema = base.getSchema().subSchema(projectlist);
-            root.setSchema(newSchema);
-        }
-    }
-
     /** create join operators **/
     public void createJoinOp(){
-        joins = new HashMap<String, HashMap<String, ArrayList<Condition>>>();
 
-        /** enumeration of single relation plans*/
-        for (int i = 0; i < numJoin; i ++) {
-            /** two tables join consists of lefttable, condition, righttable*/
-            Condition cn = (Condition) joinlist.elementAt(i);
-            String lefttab = cn.getLhs().getTabName();
-            String righttab = ((Attribute) cn.getRhs()).getTabName();
+        System.out.println("DP Join...");
 
-            /** store all joins **/
-            HashMap<String, ArrayList<Condition>> rightTableWithCon = new HashMap<>();
-            /** there may be multiple conditions between left and right tables **/
-            ArrayList<Condition> conditionList = new ArrayList<>();
-
-            if(joins.containsKey(lefttab)) {
-
-                rightTableWithCon = joins.get(lefttab);
-
-                if(rightTableWithCon.containsKey(righttab)) {
-                    /** add new condition to the old condition list*/
-                    conditionList = rightTableWithCon.get(righttab);
-                    if(!conditionList.contains(cn)) {
-                        conditionList.add(cn);
-
-                        /** update the hashmap*/
-                        HashMap<String, ArrayList<Condition>> newRightTableWithCon = new HashMap<String, ArrayList<Condition>>();
-                        newRightTableWithCon.put(righttab, oldCon);
-                        joins.replace(lefttab, newRightTableWithCon);
-                    }
-                } else {
-                    conditionList.add(cn);
-                    rightTableWithCon.put(righttab, conditionList);
-                    joins.put(lefttab, rightTableWithCon);
-                }
-            }
-
-            conditionList.add(cn);
-            rightTableWithCon.put(righttab, cn);
-            joins.put(lefttab, rightTableWithCon);
-        }
-
-        /** initialize cost table with all tales from FROM list, and its cost as number of batches in the table**/
-        for (int i = 1; i <= joinlist.size(); i ++) {
-            //costTable = new HashMap<ArrayList<String>, double>();
-            Condition cn = (Condition) joinlist.elementAt(jnnum);
-
-            /** get attribute for left and right combo*/
-            Attribute leftAttr = (Attribute)cn.getLhs();
-            Attribute rightAttr = (Attribute)cn.getLhs();
-
-
-            ArrayList<String> lefttab = new ArrayList<String>();
-            lefttab.add(leftAttr.getTabName());
-
-            ArrayList<String> righttab = new ArrayList<String>();
-            lefttab.add(rightAttr.getTabName());
-
-            /** get number of pages*/
-            double leftTuples= leftAttr.getNumCols();
-            int leftBatchSize = (int) Math.floor(Batch.getPageSize()/leftAttr.setTupleSize());
-            double leftCost = leftTuples/leftBatchSize;
-
-            double rightTuples= rightAttr.getNumCols();
-            int rightBatchSize = (int) Math.floor(Batch.getPageSize()/rightAttr.setTupleSize());
-            double rightCost = rightTuples/rightBatchSize;
-
-            if(!costTable.containsKey(lefttab)) costTable.put(lefttab, leftCost);
-            if(!costTable.containsKey(righttab)) costTable.put(righttab, rightCost);
-        }
-
-
+        Join jn=null;
 
 
         /** to form all set of plans of size i, evaluate their cost, retain the cheapest plan for each combination**/
-        for (int i = 2; i <= jointAttributesList.size(); i ++) {
-
-            ArrayList<String> tableNameList = new ArrayList<String>();
-            populateTableNameList(tableNameList);
+        for (int i = 2; i <= fromlist.size(); i ++) {
 
             /** each combination consists of an array of table names*/
             ArrayList<ArrayList<String>> combinations = getCombinations(tableNameList, i);
 
+            /** debug */
+            System.out.println("combinations generated: ");
+            for (ArrayList<String> combination : combinations) {
+                System.out.println("This is one combination generated: ");
+                for (String table : combination) {
+                    System.out.print(table + " ");
+                }
+            }
+            System.out.println("");
 
             /** compute cost for each combination of tables of size i, get the min cost physical plan for the combination*/
             for (ArrayList<String> combination : combinations) {
+
+                System.out.println("We are looking at this plan: ");
+                for(String combo : combination) {
+                    System.out.print(combo + " ");
+                }
+
 
                 ArrayList<String> minLhsJoin = new ArrayList<>();
                 ArrayList<String> minRhsJoin = new ArrayList<>();
                 double minCost = Double.MAX_VALUE;
 
                 ArrayList<ArrayList<ArrayList<String>>> plans= generatePlans(combination);
+
+                /** debug the plans generated */
+                System.out.println("the number of plans: ");
+                System.out.println(plans.size());
+
+                System.out.println("This is one plan: ");
+                for (ArrayList<ArrayList<String>> plan : plans) {
+                    System.out.println("This is left plan: ");
+                    ArrayList<String> lhss = plan.get(0);
+                    for (String lhssplan : lhss) {
+                        System.out.print(lhssplan + " ");
+                    }
+                    System.out.println("");
+                    System.out.println("This is right plan: ");
+                    ArrayList<String> rhss = plan.get(1);
+                    for (String rhssplan : rhss) {
+                        System.out.print(rhssplan + " ");
+                    }
+                    System.out.println("");
+                }
 
                 /** TODO: hardcoded jointype, 0 stands for nestedLoop*/
                 int joinType = 0;
@@ -275,6 +272,37 @@ public class DynamicPlan{
                 costTable.put(combination, minCost);
                 /** record down the resultant table(tablename, number of tuples, schema) for this combination*/
                 jointTablesList.add(joinTables(minLhsJoin, minRhsJoin));
+
+                /** set the node*/
+                Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
+                Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
+
+                Condition cn = null; //(Condition) joinlist.elementAt(i-2);
+
+                int conditionIndex = 0;
+                for (int z = 0; z < joinlist.size(); z ++) {
+                    Condition temp = (Condition) joinlist.elementAt(z);
+                    if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin)))
+                        cn = temp;
+                    conditionIndex++;
+                }
+                System.out.println("conditionIndex is " + conditionIndex);
+
+                jn = new Join(left,right,cn,OpType.JOIN);
+                jn.setNodeIndex(i-2);
+                Schema newsche = left.getSchema().joinWith(right.getSchema());
+                jn.setSchema(newsche);
+                /** randomly select a join type**/
+                int numJMeth = JoinType.numJoinTypes();
+                int joinMeth = RandNumb.randInt(0,numJMeth-1);
+                jn.setJoinType(0);
+
+                String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
+                System.out.println(combinedName);
+                //insert sub-plans
+                tab_op_hash.put(combinedName,jn);
+                //modifyHashtable(left,jn);
+                //modifyHashtable(right,jn);
             }
 
         }
@@ -289,8 +317,6 @@ public class DynamicPlan{
     }
 
 
-
-
     private void modifyHashtable(Operator old, Operator newop){
         Enumeration e=tab_op_hash.keys();
         while(e.hasMoreElements()){
@@ -302,37 +328,40 @@ public class DynamicPlan{
         }
     }
 
-    /** recursively generate all combinations of different number of tables*/
-    private ArrayList<ArrayList<String>> getCombinations(ArrayList<String> tableList, int size){
-        ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
-
-        ArrayList<String> result = new ArrayList<String>();
-        recursiveCombination(tableList, size, result, results);
-
-        return results;
-
+    /** Generate all possible combination of choosing k distinct elements from joinTablesList **/
+    private ArrayList<ArrayList<String>> getCombinations(ArrayList<String> sourceList, int k) {
+        ArrayList<ArrayList<String>> result = new ArrayList<>();
+        currentResult = new ArrayList<>();  // re-initialize global helper variable
+        recursiveCombine(sourceList, result, 0, k);
+        return result;
     }
 
-    private void recursiveCombination(ArrayList<String> tableList, int size, ArrayList<String> result, ArrayList<ArrayList<String>> results){
-        if(result.size() == size) {
-            results.add(result);
+    private void recursiveCombine(ArrayList<String> sourceList, ArrayList<ArrayList<String>> result,
+                                  int offset, int sizeNeeded) {
+        if (sizeNeeded == 0) {
+            result.add(new ArrayList(currentResult));
             return;
         }
 
-        for (int i = 0; i < tableList.size(); i++)
-        {
-            result.add(tableList.get(i));
-            recursiveCombination(tableList, size, result, results);
+        for (int i=offset; i<=sourceList.size()-sizeNeeded; i++) {
+            // choose or not choose
+            currentResult.add(sourceList.get(i));
+            recursiveCombine(sourceList, result, i + 1, sizeNeeded - 1);
+            currentResult.remove(currentResult.size() - 1);
         }
     }
+
+
 
     /** partition combination to lhsplans and rhsplans, which form a plan*/
     private ArrayList<ArrayList<ArrayList<String>>> generatePlans(ArrayList<String> combination) {
 
         ArrayList<ArrayList<ArrayList<String>>> plans = new ArrayList<>();
 
-        for (int i=1; i<combination.size(); i++) {
-            ArrayList<ArrayList<String>> lhsPlans = generateCombination(sources, i);
+        for (int i=1; i< combination.size(); i++) {
+            ArrayList<ArrayList<String>> lhsPlans = getCombinations(combination, i);
+            System.out.println("The number of lhs plans: ");
+            System.out.println(lhsPlans.size());
 
             // partition combination to lhsplans and rhsplans
             for (int j=0; j<lhsPlans.size(); j++) {
@@ -353,13 +382,16 @@ public class DynamicPlan{
         return plans;
     }
 
-    private long joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan, int joinType) {
+    private double joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan, int joinType) {
         // sub-plan must always inside the cost table
+        // get the sub-combination cost, with <arrayList, double> pair
         double lhsPlanCost = costTable.get(lhsPlan);
         double rhsPlanCost = costTable.get(rhsPlan);
 
         String lhsPlanName = getCombinedTablesName(lhsPlan);
+        System.out.println("lhs plan name : " + lhsPlanName);
         String rhsPlanName = getCombinedTablesName(rhsPlan);
+        System.out.println("rhs plan name : " + rhsPlanName);
 
         int lhspages= 0;
         int rhspages = 0;
@@ -373,21 +405,26 @@ public class DynamicPlan{
         /** TODO: modify cost computation regarding to each join method*/
         switch(joinType){
             case JoinType.NESTEDJOIN:
-                joincost = lhspages*rhspages;
+                joinCost = lhspages*rhspages;
                 break;
             case JoinType.BLOCKNESTED:
-                joincost = 0;
+                joinCost = 0;
                 break;
             case JoinType.SORTMERGE:
-                joincost = 0;
+                joinCost = 0;
                 break;
             case JoinType.HASHJOIN:
-                joincost = 0;
+                joinCost = 0;
                 break;
             default:
-                joincost=0;
+                joinCost=0;
                 break;
         }
+
+        System.out.println("cost computed for this plan: ");
+        System.out.println(lhsPlanCost);
+        System.out.println(rhsPlanCost);
+        System.out.println(joinCost);
 
         return lhsPlanCost + rhsPlanCost + joinCost;
     }
@@ -395,9 +432,9 @@ public class DynamicPlan{
     /** return a set of table's attriute, which will contain information used in cost computation*/
     private ArrayList<Attribute> populateJointAttributesList(ArrayList<Attribute> jointAttributesList){
 
-        for (int i = 1; i <= joinlist.size(); i ++) {
+        for (int i = 0; i < joinlist.size(); i ++) {
             //costTable = new HashMap<ArrayList<String>, double>();
-            Condition cn = (Condition) joinlist.elementAt(jnnum);
+            Condition cn = (Condition) joinlist.elementAt(i);
 
             /** get attribute for left and right combo*/
             Attribute leftAttr = (Attribute) cn.getLhs();
@@ -413,12 +450,8 @@ public class DynamicPlan{
 
     private ArrayList<String> populateTableNameList(ArrayList<String> tableNameList) {
 
-        for (int i = 0; i < tableJoinlist.size(); i++) {
-
-            Attribute attr = (Attribute) tableJoinlist.get(i);
-            String tableName = attr.getTabName();
-
-            if (!tableNameList.contains(tableName)) tableNameList.add(tableName);
+        for (Table table : jointTablesList) {
+            tableNameList.add(table.getTableName());
         }
 
         return tableNameList;
@@ -467,6 +500,22 @@ public class DynamicPlan{
         return combinedName;
     }
 
+    /** overloaded function*/
+    private String getCombinedTablesName(ArrayList<String> combination1, ArrayList<String> combination2) {
+
+        ArrayList<String> allCombo = new ArrayList<String>();
+        allCombo.addAll(combination1);
+        allCombo.addAll(combination2);
+
+        /** Sort names to make the unique for a combination*/
+        Collections.sort(allCombo);
+
+
+        String newName = getCombinedTablesName(allCombo);
+
+        return newName;
+    }
+
     private Table joinTables(ArrayList<String> minLhsJoin, ArrayList<String> minRhsJoin) {
 
         ArrayList<String> allPlans = new ArrayList<String>();
@@ -505,6 +554,20 @@ public class DynamicPlan{
         return new Table(newTupleNum, newTableName, newSchema);
     }
 
+    private HashMap<ArrayList<String>, Double> populateCostTable(HashMap<ArrayList<String>, Double> costTable) {
+
+        /** initialize cost table with all tales from FROM list, and its cost as number of batches in the table**/
+        for (int i = 0; i < jointTablesList.size(); i++) {
+            ArrayList<String> tableCombo = new ArrayList<String>();
+            tableCombo.add(jointTablesList.get(i).getTableName());
+
+            double cost = (int) Math.ceil(jointTablesList.get(i).getNumTuples()/Batch.getPageSize());
+
+            costTable.put(tableCombo, cost);
+        }
+        return costTable;
+    }
+
 
     /**Table structure for cost computation*/
     class Table {
@@ -518,7 +581,9 @@ public class DynamicPlan{
             this.schema = schema;
         }
 
-        public int getNumTuples() return numTuples;
+        public int getNumTuples() {
+            return numTuples;
+        }
 
         public void setNumTuples(int numTuples) {
             this.numTuples = numTuples;
@@ -538,6 +603,20 @@ public class DynamicPlan{
 
         public Schema getSchema() {
             return schema;
+        }
+    }
+
+    public void createProjectOp(){
+        Operator base = root;
+        if ( projectlist == null )
+            projectlist = new Vector();
+
+        if(!projectlist.isEmpty()){
+            root = new Project(base,projectlist,OpType.PROJECT);
+            if(root != null) System.out.println(root);
+            if(base == null) System.out.println("base is null");
+            Schema newSchema = base.getSchema().subSchema(projectlist);
+            root.setSchema(newSchema);
         }
     }
 }

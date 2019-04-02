@@ -196,8 +196,10 @@ public class RandomInitialPlan{
 
     public void createProjectOp(){
 	Operator base = root;
-        if ( projectlist == null )
-            projectlist = new Vector();
+	System.out.println("root is: ");
+	System.out.println(root);
+	if ( projectlist == null )
+		projectlist = new Vector();
 
 	if(!projectlist.isEmpty()){
 	    root = new Project(base,projectlist,OpType.PROJECT);
