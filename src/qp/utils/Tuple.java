@@ -81,9 +81,24 @@ public class Tuple implements Serializable {
 	}
     }
 
-
+    public static void printTuple (Tuple t) {
+        for (int i = 0; i < t.data().size(); i++) {
+            Object data = t.dataAt(i);
+            if (data instanceof Integer) {
+                System.out.print(((Integer) data).intValue() + "\t");
+            } else if (data instanceof Float) {
+                System.out.print(((Float) data).floatValue() + "\t");
+            } else {
+                System.out.print(((String) data) + "\t");
+            }
+        }
+        System.out.println();
+    }
 
 }
+
+
+
 
 
 
