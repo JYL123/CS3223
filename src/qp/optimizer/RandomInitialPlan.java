@@ -21,6 +21,7 @@ public class RandomInitialPlan{
     Vector joinlist;          //List of join conditions
     Vector groupbylist;
     int numJoin;    // Number of joins in this query
+    boolean isDistinct;
 
 
     Hashtable tab_op_hash;          //table name to the Operator
@@ -36,6 +37,7 @@ public class RandomInitialPlan{
 	joinlist = sqlquery.getJoinList();
 	groupbylist = sqlquery.getGroupByList();
 	numJoin = joinlist.size();
+	isDistinct = sqlquery.isDistinct();
 
 
     }
@@ -198,11 +200,24 @@ public class RandomInitialPlan{
         if ( projectlist == null )
             projectlist = new Vector();
 
-	if(!projectlist.isEmpty()){
-	    root = new Project(base,projectlist,OpType.PROJECT);
-	    Schema newSchema = base.getSchema().subSchema(projectlist);
-	    root.setSchema(newSchema);
-	}
+
+	    if (isDistinct) {
+            Schema newSchema;
+            if (projectlist.isEmpty()) {
+                projectlist = base.getSchema().getAttList();
+                newSchema = base.getSchema();
+            }
+            else {
+                newSchema = base.getSchema().subSchema(projectlist);
+            }
+            root = new Distinct(base, OpType.DISTINCT);
+            root.setSchema(newSchema);
+        }
+        else if(!projectlist.isEmpty()){
+            root = new Project(base,projectlist,OpType.PROJECT);
+            Schema newSchema = base.getSchema().subSchema(projectlist);
+            root.setSchema(newSchema);
+        }
     }
 
     private void modifyHashtable(Operator old, Operator newop){

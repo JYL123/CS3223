@@ -69,6 +69,7 @@ public class QueryMain{
 
 	SQLQuery sqlquery = p.getSQLQuery();
 	int numJoin = sqlquery.getNumJoin();
+	boolean isDistinct = sqlquery.isDistinct();
 
 
 	/** If there are joins then assigns buffers to each join operator
@@ -79,7 +80,7 @@ public class QueryMain{
 	**/
 
 
-	if(numJoin !=0){
+	if(numJoin !=0 || isDistinct){
 	    System.out.println("enter the number of buffers available");
 
 	    try {

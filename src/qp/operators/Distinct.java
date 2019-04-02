@@ -17,9 +17,10 @@ public class Distinct extends Operator {
 
 
 
-    public Distinct(Operator base) {
-        super(OpType.DISTINCT);
+    public Distinct(Operator base, int type) {
+        super(type);
         this.base = base;
+
 
     }
 
