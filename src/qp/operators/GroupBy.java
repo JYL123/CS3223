@@ -43,7 +43,7 @@ public class GroupBy extends Operator {
         return base;
     }
 
-    public Vector getProjAttr() {
+    public Vector getGroupAttr() {
         return attrSet;
     }
 
@@ -139,7 +139,7 @@ public class GroupBy extends Operator {
         Vector newattr = new Vector();
         for (int i = 0; i < attrSet.size(); i++)
             newattr.add((Attribute) ((Attribute) attrSet.elementAt(i)).clone());
-        Project newproj = new Project(newbase, newattr, optype);
+        GroupBy newproj = new GroupBy(newbase, newattr, optype);
         Schema newSchema = newbase.getSchema().subSchema(newattr);
         newproj.setSchema(newSchema);
         return newproj;

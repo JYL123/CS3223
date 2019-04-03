@@ -59,7 +59,8 @@ public class RandomInitialPlan{
 	    createJoinOp();
 	}
 	createProjectOp();
-	// TODO: GROUPBY
+	// TODO: GROUPBY DONE
+	createGroupbyOp();
 	return root;
     }
 
@@ -207,7 +208,16 @@ public class RandomInitialPlan{
     }
 
     public void createGroupbyOp() {
-		// TODO: GROUPBY
+		// TODO: GROUPBY DONE
+		Operator base = root;
+		if (groupbylist == null)
+			groupbylist = new Vector();
+
+		if (!groupbylist.isEmpty()) {
+			root = new GroupBy(base, groupbylist, OpType.GROUPBY);
+			Schema newSchema = base.getSchema().subSchema(groupbylist);
+			root.setSchema(newSchema);
+		}
 	}
 
     private void modifyHashtable(Operator old, Operator newop){

@@ -20,7 +20,7 @@ public class JoinType{
 
    public static int numJoinTypes(){
 	return 2;
-    //TODO
+    //TODO ADD NEW JOIN TYPE
         // return k for k joins
     }
 
