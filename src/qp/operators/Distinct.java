@@ -2,6 +2,7 @@ package qp.operators;
 
 import java.util.HashMap;
 import java.util.Vector;
+
 import qp.utils.*;
 
 public class Distinct extends Operator {
@@ -23,8 +24,18 @@ public class Distinct extends Operator {
         super(type);
         this.base = base;
         this.attrSet = attrSet;
+    }
 
+    public void setBase(Operator base) {
+        this.base = base;
+    }
 
+    public Operator getBase() {
+        return base;
+    }
+
+    public Vector getProjAttr() {
+        return attrSet;
     }
 
     /** open the connection **/
@@ -45,7 +56,7 @@ public class Distinct extends Operator {
 
         for (int i = 0; i < attrSet.size(); i++) {
             Attribute a = (Attribute) attrSet.elementAt(i);
-            System.out.println("\nattribute: -------------------------------");
+            System.out.println("\nDISTINCT attribute: -------------------------------");
             Debug.PPrint(a);
             // get the index of columns of the table,
             // and add it to the array which tracks these index
@@ -124,12 +135,12 @@ public class Distinct extends Operator {
 //                last = current;
 
                 if (outPage.isFull()) {
-                    if (i == inPage.size()) {
-                        pos = 0;
-                    }
-                    else {
-                        pos = i + 1;
-                    }
+//                    if (i == inPage.size()) {
+//                        pos = 0;
+//                    }
+//                    else {
+//                        pos = i + 1;
+//                    }
                     return outPage;
                 }
             }
@@ -144,4 +155,22 @@ public class Distinct extends Operator {
     public boolean close() {
         return true;
     }
+
+    public Object clone() {
+        Operator newBase = (Operator) base.clone();
+        Vector newAttrSet = new Vector();
+        for (int i = 0; i < attrSet.size(); i++) {
+            Attribute a = (Attribute) ((Attribute) attrSet.elementAt(i)).clone();
+            newAttrSet.add(a);
+            System.out.println("\nDebugging for Attribute a: ----------------------");
+            Debug.PPrint(a);
+        }
+        Distinct newProj = new Distinct(newBase, optype, newAttrSet);
+        Schema newSchema = newBase.getSchema().subSchema(newAttrSet);
+        newProj.setSchema(newSchema);
+        return newProj;
+
+
+    }
+
 }
