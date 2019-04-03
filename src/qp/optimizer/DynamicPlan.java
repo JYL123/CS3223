@@ -16,6 +16,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.io.File;
 import java.util.Scanner;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
+import static java.util.Map.Entry;
+
 
 public class DynamicPlan{
 
@@ -27,6 +32,7 @@ public class DynamicPlan{
     Vector joinlist;          //List of join conditions
     Vector groupbylist;
     int numJoin;    // Number of joins in this query
+    int numBuffer;
 
 
     Hashtable tab_op_hash;          //table name to the Operator
@@ -41,7 +47,7 @@ public class DynamicPlan{
     ArrayList<String> currentResult;
 
 
-    public DynamicPlan(SQLQuery sqlquery){
+    public DynamicPlan(SQLQuery sqlquery, int numBuffer){
         this.sqlquery=sqlquery;
 
         projectlist=(Vector) sqlquery.getProjectList();
@@ -50,6 +56,7 @@ public class DynamicPlan{
         joinlist = sqlquery.getJoinList();
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
+        this.numBuffer = numBuffer;
 
         if(numJoin != 0){
 
@@ -58,13 +65,13 @@ public class DynamicPlan{
             populateJointAttributesList(jointAttributesList);
             jointTablesList = new ArrayList<Table>();
             populateJointTableList(jointTablesList);
+            setTupleNumber(jointTablesList);
             for (Table table : jointTablesList) {
                 System.out.println("This is one table: ");
                 System.out.println(table.getTableName());
                 System.out.println(table.getNumTuples());
                 System.out.println(table.getSchema());
             }
-            setTupleNumber(jointTablesList);
 
             costTable = new HashMap<ArrayList<String>, Double>();
             populateCostTable(costTable);
@@ -295,10 +302,9 @@ public class DynamicPlan{
                 jn.setNodeIndex(i-2);
                 Schema newsche = left.getSchema().joinWith(right.getSchema());
                 jn.setSchema(newsche);
-                /** randomly select a join type**/
-                int numJMeth = JoinType.numJoinTypes();
-                int joinMeth = RandNumb.randInt(0,numJMeth-1);
-                jn.setJoinType(0);
+                /** return a join method that gives least cost**/
+                int joinMeth = getJoinMethod(minLhsJoin, minRhsJoin);
+                jn.setJoinType(joinMeth);
 
                 String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
                 System.out.println(combinedName);
@@ -385,6 +391,39 @@ public class DynamicPlan{
         return plans;
     }
 
+    private int getJoinMethod(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan) {
+
+        String lhsPlanName = getCombinedTablesName(lhsPlan);
+        String rhsPlanName = getCombinedTablesName(rhsPlan);
+
+        int lhspages= 0;
+        int rhspages = 0;
+
+        for (Table table : jointTablesList) {
+            if (table.getTableName().equals(lhsPlanName)) lhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
+            if (table.getTableName().equals(rhsPlanName)) rhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
+        }
+
+        int blocksSize = (int) Math.floor(numBuffer/numJoin);
+
+        double nestedJoin = lhspages*rhspages + lhspages;
+        double blockNested = ((int) Math.ceil(lhspages/blocksSize)*rhspages) + lhspages;
+        double hashJoin = 3*(lhspages + rhspages);
+
+        Map<Integer, Double> costMap = new HashMap<>();
+        costMap.put(0, nestedJoin);
+        costMap.put(1, blockNested);
+        costMap.put(2, hashJoin);
+
+        Map<Integer, Double> sortedMap =
+                costMap.entrySet().stream()
+                        .sorted(Entry.comparingByValue())
+                        .collect(Collectors.toMap(Entry::getKey, Entry::getValue,
+                                (e1, e2) -> e1, LinkedHashMap::new));
+
+        return (int) sortedMap.keySet().toArray()[0];
+    }
+
     private double joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan) {
         // sub-plan must always inside the cost table
         // get the sub-combination cost, with <arrayList, double> pair
@@ -418,6 +457,9 @@ public class DynamicPlan{
         costArray.add(sortmMerge);
         Collections.sort(costArray);
 
+        for (Double cost : costArray) {
+            System.out.println(cost);
+        }
 
         System.out.println("cost computed for this plan: ");
         System.out.println(lhsPlanCost);
@@ -490,7 +532,7 @@ public class DynamicPlan{
         for(Table table : jointTablesList){  // For each table in from list
 
             String tabname = table.getTableName();
-            String filename = tabname+".det";
+            String filename = tabname+".stat";
 
             try {
                 File file = new File(filename);
@@ -498,7 +540,7 @@ public class DynamicPlan{
 
                 int index = 0;
                 int numTuples = 0;
-                int TUPLEINDEX = 1;
+                int TUPLEINDEX = 0;
 
                 while (input.hasNextLine()) {
                     String line = input.nextLine();

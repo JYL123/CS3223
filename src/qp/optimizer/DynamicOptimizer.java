@@ -10,14 +10,16 @@ import java.util.Vector;
 public class DynamicOptimizer{
 
     SQLQuery sqlquery;
+    int numBuffer;
 
-    public DynamicOptimizer(SQLQuery sqlquery){
+    public DynamicOptimizer(SQLQuery sqlquery, int numBuffer){
         this.sqlquery = sqlquery;
+        this.numBuffer = numBuffer;
     }
 
     public Operator getOptimizedPlan(){
 
-        DynamicPlan dp = new DynamicPlan(sqlquery);
+        DynamicPlan dp = new DynamicPlan(sqlquery, numBuffer);
         return dp.preparePlan();
     }
 

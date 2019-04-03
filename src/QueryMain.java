@@ -112,7 +112,7 @@ public class QueryMain {
  System.out.println();
  **/
 
-        RandomOptimizer ro = new RandomOptimizer(sqlquery);
+        DynamicOptimizer ro = new DynamicOptimizer(sqlquery, numBuff);
         Operator logicalroot = ro.getOptimizedPlan();
         if (logicalroot == null) {
             System.out.println("root is null");
