@@ -181,7 +181,7 @@ public class HashJoin extends Join {
      * Close the operator
      */
     public boolean close() {
-        System.out.println("CLOSE!!! " + filenum);
+        //System.out.println("CLOSE!!! " + filenum);
         // Delete all partition files
         for (int i = 0; i < fileNames.size(); i++) {
             File f = new File(fileNames.get(i));
@@ -413,17 +413,17 @@ public class HashJoin extends Join {
         for (int i = lTupleCurs + 1; i < hashTable[hash].size(); i++) {
             Tuple tupleInHash = hashTable[hash].elementAt(i);
             lTupleCurs = i;
-            System.out.printf("%d - Partition: %d/%d, Right-page: %d/%d, Right-tuple: %d/%d, Left-tuple: %d/%d",
+            //System.out.printf("%d - Partition: %d/%d, Right-page: %d/%d, Right-tuple: %d/%d, Left-tuple: %d/%d",
                     filenum, partitionCurs,
                     partitionLeftPageCounts.length-1, rPageCurs, partitionsRightPageCounts[partitionCurs]-1, rTupleCurs,
                     inputBuffer.size()-1, lTupleCurs, hashTable[hash].size()-1);
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
                 // Return back to curs to continue search
-                System.out.print(" == FOUND!");
-                System.out.println(" ");
+                //System.out.print(" == FOUND!");
+                //System.out.println(" ");
                 return tupleInHash;
             } else {
-                System.out.println(" ");
+                //System.out.println(" ");
             }
         }
         // End of search, reset curs
