@@ -73,6 +73,7 @@ public class PlanCost{
 	    return getStatistics((Scan)node);
 
 	}
+	// TODO: GROUPBY
 	return -1;
     }
 

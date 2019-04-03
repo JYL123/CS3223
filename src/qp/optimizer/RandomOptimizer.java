@@ -355,6 +355,7 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
         } else {
+            // TODO: GROUPBY
             return null;
         }
     }
@@ -380,6 +381,7 @@ public class RandomOptimizer {
             Vector attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
         }
+        // TODO: GROUPBY
     }
 
 
@@ -389,7 +391,7 @@ public class RandomOptimizer {
      **/
 
     public static Operator makeExecPlan(Operator node) {
-
+    //TODO
         if (node.getOpType() == OpType.JOIN) {
             Operator left = makeExecPlan(((Join) node).getLeft());
             Operator right = makeExecPlan(((Join) node).getRight());
@@ -438,6 +440,7 @@ public class RandomOptimizer {
             Operator base = makeExecPlan(((Project) node).getBase());
             ((Project) node).setBase(base);
             return node;
+            // TODO: GROUPBY
         } else {
             return node;
         }

@@ -59,6 +59,7 @@ public class RandomInitialPlan{
 	    createJoinOp();
 	}
 	createProjectOp();
+	// TODO: GROUPBY
 	return root;
     }
 
@@ -204,6 +205,10 @@ public class RandomInitialPlan{
 	    root.setSchema(newSchema);
 	}
     }
+
+    public void createGroupbyOp() {
+		// TODO: GROUPBY
+	}
 
     private void modifyHashtable(Operator old, Operator newop){
 	Enumeration e=tab_op_hash.keys();
