@@ -395,8 +395,7 @@ public class RandomOptimizer{
 	}else if (node.getOpType()==OpType.DISTINCT) {
 	    Operator base = ((Distinct)node).getBase();
 	    modifySchema(base);
-	    Vector attrlist =  ((Distinct)node).getProjAttr();
-	    node.setSchema((base.getSchema().subSchema(attrlist)));
+	    node.setSchema(base.getSchema());
     }
     }
 
@@ -455,8 +454,10 @@ public class RandomOptimizer{
         ((Project) node).setBase(base);
         return node;
     }else if (node.getOpType() == OpType.DISTINCT) {
+	    int numBuff = BufferManager.getNumBuffer();
 	    Operator base = makeExecPlan(((Distinct)node).getBase());
         ((Distinct)node).setBase(base);
+        ((Distinct)node).setNumBuff(numBuff);
         return node;
 	}else{
 	    return node;

@@ -60,10 +60,10 @@ public class RandomInitialPlan{
 	if(numJoin !=0){
 	    createJoinOp();
 	}
+	createSortMergeOp();
 	createProjectOp();
 	return root;
     }
-
 
 
 
@@ -218,6 +218,12 @@ public class RandomInitialPlan{
             Schema newSchema = base.getSchema().subSchema(projectlist);
             root.setSchema(newSchema);
         }
+    }
+
+    private void createSortMergeOp() {
+        // not implemented at the moment
+        // possibly merge Distinct and GroupBy into SortMergeOp
+        return;
     }
 
     private void modifyHashtable(Operator old, Operator newop){
