@@ -58,6 +58,15 @@ public class Block implements Serializable {
         }
     }
 
+    public void addBatch(Batch b) {
+        if (!isFull()) {
+            batches.add(b);
+            for (int i = 0; i < b.size(); i++) {
+                tuples.add(b.elementAt(i));
+            }
+        }
+    }
+
     public int getBatchSize() {
         return batches.size();
     }
