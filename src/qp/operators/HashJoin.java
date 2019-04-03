@@ -40,6 +40,7 @@ public class HashJoin extends Join {
     int rPageCurs; // Current right page cursor
     int rTupleCurs; // Last probed tuple in the right page
     int lTupleCurs; // Last checked tuple in a particular bucket of the hash table
+    boolean done;
 
     public HashJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getCondition(), jn.getOpType());
@@ -91,6 +92,7 @@ public class HashJoin extends Join {
         rPageCurs = 0;
         rTupleCurs = -1;
         lTupleCurs = -1;
+        done = false;
         // Prepare buffer for reading of right and output of joined tuples
         inputBuffer = new Batch(Batch.getPageSize() / right.schema.getTupleSize());
         outputBuffer = new Batch(Batch.getPageSize() / schema.getTupleSize());
@@ -104,6 +106,11 @@ public class HashJoin extends Join {
      * * And returns a page of output tuples
      **/
     public Batch next() {
+        if (done) {
+            System.out.println("DONE");
+            return null;
+        }
+
         // Prepare (clean) output buffer for new set of joined tuples
         outputBuffer.clear();
 
@@ -116,6 +123,7 @@ public class HashJoin extends Join {
                 } else {
                     // Error reading partition or no tuple in the left of this partition
                     // Move to next partition to build hash table
+                    partitionCurs = parti;
                     continue;
                 }
             }
@@ -156,11 +164,15 @@ public class HashJoin extends Join {
             rPageCurs = 0;
             rTupleCurs = -1;
         }
+
         // End of probing
+        done = true;
+        close();
+
         if (outputBuffer.isEmpty()) {
-            close();
             return null;
         }
+
         return outputBuffer;
     }
 
@@ -169,19 +181,18 @@ public class HashJoin extends Join {
      * Close the operator
      */
     public boolean close() {
+        System.out.println("CLOSE!!! " + filenum);
         // Delete all partition files
         for (int i = 0; i < fileNames.size(); i++) {
             File f = new File(fileNames.get(i));
             f.delete();
         }
 
-        inputBuffer.clear();
+//        inputBuffer.clear();
         inputBuffer = null;
-        outputBuffer.clear();
-        outputBuffer = null;
-        for (int i = 0; i < numBuff - 2; i++) {
-            hashTable[i].clear();
-        }
+//        for (int i = 0; i < numBuff - 2; i++) {
+//            hashTable[i].clear();
+//        }
         hashTable = null;
 
         return true;
@@ -244,6 +255,7 @@ public class HashJoin extends Join {
         ObjectInputStream in;
         try {
             in = new ObjectInputStream(new FileInputStream(fileName));
+            System.out.println(fileName);
         } catch (IOException io) {
             System.err.println("Hash Join : error in reading the file === " + fileName);
             return false;
@@ -400,10 +412,18 @@ public class HashJoin extends Join {
         // Search for match in a specifc bucket of the hash table
         for (int i = lTupleCurs + 1; i < hashTable[hash].size(); i++) {
             Tuple tupleInHash = hashTable[hash].elementAt(i);
+            lTupleCurs = i;
+            System.out.printf("%d - Partition: %d/%d, Right-page: %d/%d, Right-tuple: %d/%d, Left-tuple: %d/%d",
+                    filenum, partitionCurs,
+                    partitionLeftPageCounts.length-1, rPageCurs, partitionsRightPageCounts[partitionCurs]-1, rTupleCurs,
+                    inputBuffer.size()-1, lTupleCurs, hashTable[hash].size()-1);
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
                 // Return back to curs to continue search
-                lTupleCurs = i;
+                System.out.print(" == FOUND!");
+                System.out.println(" ");
                 return tupleInHash;
+            } else {
+                System.out.println(" ");
             }
         }
         // End of search, reset curs
