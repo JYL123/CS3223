@@ -255,7 +255,7 @@ public class HashJoin extends Join {
         ObjectInputStream in;
         try {
             in = new ObjectInputStream(new FileInputStream(fileName));
-            System.out.println(fileName);
+            //System.out.println(fileName);
         } catch (IOException io) {
             System.err.println("Hash Join : error in reading the file === " + fileName);
             return false;
