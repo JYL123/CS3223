@@ -109,6 +109,7 @@ public class RandomOptimizer{
 		while(flag){   // flag = false when local minimum is reached
  System.out.println("---------------while--------");
 		    Operator initPlanCopy = (Operator) initPlan.clone();
+		    boolean DEBUG = (initPlanCopy == null);
 		    minNeighbor = getNeighbor(initPlanCopy);
 
 		    System.out.println("--------------------------neighbor---------------");
@@ -198,6 +199,8 @@ public class RandomOptimizer{
     protected Operator neighborCommut(Operator root, int joinNum){
 	System.out.println("------------------neighbor by commutative---------------");
 	/** find the node to be altered**/
+	System.out.println("******************neighborCommut************************");
+	Debug.PPrint(root);
 	Join node = (Join) findNodeAt(root,joinNum);
 	Operator left = node.getLeft();
 	Operator right = node.getRight();
@@ -220,6 +223,8 @@ public class RandomOptimizer{
 
     protected Operator neighborAssoc(Operator root,int joinNum){
 	/** find the node to be altered**/
+        System.out.println("****************neighborAssoc**************************");
+	Debug.PPrint(root);
 	Join op =(Join) findNodeAt(root,joinNum);
 	//Join op = (Join) joinOpList.elementAt(joinNum);
 	Operator left = op.getLeft();
@@ -353,11 +358,13 @@ public class RandomOptimizer{
 	    }
 	}else if(node.getOpType() == OpType.SCAN){
 	    return null;
-	}else if(node.getOpType()==OpType.SELECT){
+	}else if(node.getOpType() == OpType.SELECT){
 	    //if sort/project/select operator
 	    return findNodeAt(((Select)node).getBase(),joinNum);
-	}else if(node.getOpType()==OpType.PROJECT){
-	    return findNodeAt(((Project)node).getBase(),joinNum);
+	}else if(node.getOpType() == OpType.PROJECT) {
+        return findNodeAt(((Project) node).getBase(), joinNum);
+    }else if (node.getOpType() == OpType.DISTINCT) {
+	    return findNodeAt(((Distinct)node).getBase(), joinNum);
 	}else{
 	    return null;
 	}
@@ -385,7 +392,12 @@ public class RandomOptimizer{
 	    modifySchema(base);
 	    Vector attrlist = ((Project)node).getProjAttr();
 	    node.setSchema(base.getSchema().subSchema(attrlist));
-	}
+	}else if (node.getOpType()==OpType.DISTINCT) {
+	    Operator base = ((Distinct)node).getBase();
+	    modifySchema(base);
+	    Vector attrlist =  ((Distinct)node).getProjAttr();
+	    node.setSchema((base.getSchema().subSchema(attrlist)));
+    }
     }
 
 
@@ -438,10 +450,14 @@ public class RandomOptimizer{
 	    Operator base = makeExecPlan(((Select)node).getBase());
 	    ((Select)node).setBase(base);
 	    return node;
-	}else if(node.getOpType() == OpType.PROJECT){
-	    Operator base = makeExecPlan(((Project)node).getBase());
-	    ((Project)node).setBase(base);
-	    return node;
+	}else if(node.getOpType() == OpType.PROJECT) {
+        Operator base = makeExecPlan(((Project) node).getBase());
+        ((Project) node).setBase(base);
+        return node;
+    }else if (node.getOpType() == OpType.DISTINCT) {
+	    Operator base = makeExecPlan(((Distinct)node).getBase());
+        ((Distinct)node).setBase(base);
+        return node;
 	}else{
 	    return node;
 	}
