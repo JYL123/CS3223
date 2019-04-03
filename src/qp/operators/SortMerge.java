@@ -27,7 +27,6 @@ public class SortMerge extends Operator {
         super(opType);
         this.base = base;
         this.attrSet = attrSet;
-
     }
 
     public SortMerge(Operator base, Vector attrSet) {
@@ -36,17 +35,21 @@ public class SortMerge extends Operator {
         this.attrSet = attrSet;
     }
 
-
-
     public void setBase(Operator base) {
         this.base = base;
-
     }
 
     public Operator getBase() {
         return base;
     }
 
+    public void setNumBuff(int numBuff) {
+        this.numBuff = numBuff;
+    }
+
+    public int getNumBuff() {
+        return numBuff;
+    }
 
     /** opens the connection to the base operator **/
     public boolean open() {
