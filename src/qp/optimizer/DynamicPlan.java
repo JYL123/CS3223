@@ -14,6 +14,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.io.File;
+import java.util.Scanner;
 
 public class DynamicPlan{
 
@@ -34,7 +36,7 @@ public class DynamicPlan{
     ArrayList<Table> jointTablesList; // stores all tables
     ArrayList<Attribute> jointAttributesList; // all distinct table's attribute for a join condition
     ArrayList<String> tableNameList; // list of table names
-    HashMap<ArrayList<String>, Double> costTable; //to record each combination and its min cost
+    HashMap<ArrayList<String>, Double> costTable; //to record each combination and its min cost, cost = number of pages in a table
     HashMap<ArrayList<String>, Integer> intermediateTablePages; // to record down the number of pages in each intermeidate table
     ArrayList<String> currentResult;
 
@@ -62,7 +64,7 @@ public class DynamicPlan{
                 System.out.println(table.getNumTuples());
                 System.out.println(table.getSchema());
             }
-
+            setTupleNumber(jointTablesList);
 
             costTable = new HashMap<ArrayList<String>, Double>();
             populateCostTable(costTable);
@@ -114,6 +116,10 @@ public class DynamicPlan{
         }
 
         createProjectOp();
+
+        PlanCost pc = new PlanCost();
+        System.out.println("The cost for this plan is:  " + pc.getCost(root));
+
         return root;
     }
 
@@ -251,14 +257,11 @@ public class DynamicPlan{
                     System.out.println("");
                 }
 
-                /** TODO: hardcoded jointype, 0 stands for nestedLoop*/
-                int joinType = 0;
-
                 for (int j=0; j<plans.size(); j++) {
                     ArrayList<String> lhsJoin = plans.get(j).get(0);
                     ArrayList<String> rhsJoin = plans.get(j).get(1);
 
-                    double cost = joinPlanCost(lhsJoin, rhsJoin, joinType);
+                    double cost = joinPlanCost(lhsJoin, rhsJoin);
 
                     if (cost < minCost) {
                         minCost = cost;
@@ -382,7 +385,7 @@ public class DynamicPlan{
         return plans;
     }
 
-    private double joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan, int joinType) {
+    private double joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan) {
         // sub-plan must always inside the cost table
         // get the sub-combination cost, with <arrayList, double> pair
         double lhsPlanCost = costTable.get(lhsPlan);
@@ -401,32 +404,27 @@ public class DynamicPlan{
             if (table.getTableName().equals(rhsPlanName)) rhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
         }
 
-        double joinCost = 0;
-        /** TODO: modify cost computation regarding to each join method*/
-        switch(joinType){
-            case JoinType.NESTEDJOIN:
-                joinCost = lhspages*rhspages;
-                break;
-            case JoinType.BLOCKNESTED:
-                joinCost = 0;
-                break;
-            case JoinType.SORTMERGE:
-                joinCost = 0;
-                break;
-            case JoinType.HASHJOIN:
-                joinCost = 0;
-                break;
-            default:
-                joinCost=0;
-                break;
-        }
+        int blocksSize = 3;
+
+        double nestedJoin = lhspages*rhspages + lhspages;
+        double blockNested = ((int) Math.ceil(lhspages/blocksSize)*rhspages) + lhspages;
+        double sortmMerge = Double.MAX_VALUE;
+        double hashJoin = 3*(lhspages + rhspages);
+
+        ArrayList<Double> costArray = new ArrayList<Double>();
+        costArray.add(nestedJoin);
+        costArray.add(blockNested);
+        costArray.add(hashJoin);
+        costArray.add(sortmMerge);
+        Collections.sort(costArray);
+
 
         System.out.println("cost computed for this plan: ");
         System.out.println(lhsPlanCost);
         System.out.println(rhsPlanCost);
-        System.out.println(joinCost);
+        System.out.println(costArray.get(0));
 
-        return lhsPlanCost + rhsPlanCost + joinCost;
+        return lhsPlanCost + rhsPlanCost + costArray.get(0);
     }
 
     /** return a set of table's attriute, which will contain information used in cost computation*/
@@ -475,7 +473,7 @@ public class DynamicPlan{
             try {
                 ObjectInputStream _if = new ObjectInputStream(new FileInputStream(filename));
                 Schema schm = (Schema) _if.readObject();
-                Table table = new Table(schm.getNumCols(), tabname, schm);
+                Table table = new Table(schm.getTupleSize(), tabname, schm);
                 jointTablesList.add(table);
                 _if.close();
             } catch (Exception e) {
@@ -485,6 +483,40 @@ public class DynamicPlan{
         }
 
         return jointTablesList;
+    }
+
+    private void setTupleNumber (ArrayList<Table> jointTablesList) {
+
+        for(Table table : jointTablesList){  // For each table in from list
+
+            String tabname = table.getTableName();
+            String filename = tabname+".det";
+
+            try {
+                File file = new File(filename);
+                Scanner input = new Scanner(file);
+
+                int index = 0;
+                int numTuples = 0;
+                int TUPLEINDEX = 1;
+
+                while (input.hasNextLine()) {
+                    String line = input.nextLine();
+                    if(index == TUPLEINDEX) numTuples = Integer.parseInt(line);
+                    index ++;
+                }
+                input.close();
+
+                table.setNumTuples(numTuples);
+                System.out.print("The number of tuples we get from the table " + table.getTableName());
+                System.out.print(" is ");
+                System.out.println(numTuples);
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
     }
 
     private String getCombinedTablesName(ArrayList<String> combination) {
@@ -560,8 +592,11 @@ public class DynamicPlan{
         for (int i = 0; i < jointTablesList.size(); i++) {
             ArrayList<String> tableCombo = new ArrayList<String>();
             tableCombo.add(jointTablesList.get(i).getTableName());
+            System.out.println("The number of tuples: " + jointTablesList.get(i).getNumTuples());
+            //System.out.println("The by of tupes: " + jointTablesList.get(i).getNumTuples());
 
-            double cost = (int) Math.ceil(jointTablesList.get(i).getNumTuples()/Batch.getPageSize());
+            int numTuplesPerPage = (int) Math.ceil(Batch.getPageSize()/jointTablesList.get(i).getSchema().getTupleSize());
+            double cost =jointTablesList.get(i).getNumTuples()/numTuplesPerPage;
 
             costTable.put(tableCombo, cost);
         }
