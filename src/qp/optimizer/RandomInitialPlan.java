@@ -96,6 +96,7 @@ public class RandomInitialPlan{
 		System.err.println("RandomInitialPlan:Error reading Schema of the table" + filename);
 		System.exit(1);
 	    }
+	    /**TODO: why here we use put while use modifyHashTable in others? set base operator*/
 	    tab_op_hash.put(tabname,op1);
 	}
 
@@ -195,8 +196,10 @@ public class RandomInitialPlan{
 
     public void createProjectOp(){
 	Operator base = root;
-        if ( projectlist == null )
-            projectlist = new Vector();
+	System.out.println("root is: ");
+	System.out.println(root);
+	if ( projectlist == null )
+		projectlist = new Vector();
 
 	if(!projectlist.isEmpty()){
 	    root = new Project(base,projectlist,OpType.PROJECT);
