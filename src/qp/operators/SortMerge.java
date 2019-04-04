@@ -94,6 +94,7 @@ public class SortMerge extends Operator {
 
                 Block sortedRun = new Block(numBuff, batchsize);
                 sortedRun.setTuples((Vector) tuples);
+                int testSize = tuples.size();
                 File f = writeToFile(sortedRun, numRuns);
                 sortedFiles.add(f);
             }
@@ -201,7 +202,7 @@ public class SortMerge extends Operator {
         } catch (FileNotFoundException e) {
             System.out.println("Error: file not found");
         } catch (IOException e) {
-            System.out.println("Error: cannot open/write to temp file");
+            System.out.println("MSR Error: cannot open/write to temp file");
         }
 
         /** start MERGING **/
@@ -249,6 +250,8 @@ public class SortMerge extends Operator {
                 Tuple minTuple = inputTuples.remove();
                 outBuffer.add(minTuple);
                 if (outBuffer.isFull()) { // write entries to the output buffer
+                    System.out.println("----------- full in if --------------");
+
                     writeToOutput(outBuffer, out);
                     outBuffer.clear();
                 }
@@ -275,6 +278,7 @@ public class SortMerge extends Operator {
 
             // add the remaining tuples in output buffer to output stream
             if (!outBuffer.isEmpty()) {
+                System.out.println("----------- remainder in if --------------");
                 writeToOutput(outBuffer, out);
                 outBuffer.clear();
             }
@@ -283,13 +287,15 @@ public class SortMerge extends Operator {
         }
         else {
             while (!completesExtraction(inBuffers)) {
-                runIndex = getIndexofMinTuple(inBuffers);
+                runIndex = getIndexOfMinTuple(inBuffers);
                 temp = inBuffers.get(runIndex);
 
                 // add minTuple to output buffer
                 outBuffer.add(temp.remove(0));
                 // write result in output buffer into out stream
                 if (outBuffer.isFull()) {
+                    System.out.println("----------- full in else --------------");
+
                     writeToOutput(outBuffer, out);
                     outBuffer.clear();
                 }
@@ -302,6 +308,7 @@ public class SortMerge extends Operator {
 
             // add the remaining tuples in output buffer to output stream
             if (!outBuffer.isEmpty()) {
+                System.out.println("----------- remainder in else --------------");
                 writeToOutput(outBuffer, out);
                 outBuffer.clear();
             }
@@ -317,7 +324,8 @@ public class SortMerge extends Operator {
         return resultFile;
     }
 
-    private int getIndexofMinTuple(ArrayList<Batch> inBuffers) {
+
+    private int getIndexOfMinTuple(ArrayList<Batch> inBuffers) {
         Tuple minTuple = null;
         int index = 0;
         // get the first non-null tuple in the input buffer
@@ -361,6 +369,14 @@ public class SortMerge extends Operator {
         try {
             out.writeObject(outBuffer);
             out.reset();
+            System.out.println("=========append result==============");
+            for (int j = 0; j < outBuffer.size(); j++) {
+                Tuple present = outBuffer.elementAt(j);
+                System.out.println("tuple: " + present.dataAt(0) + " " + present.dataAt(1)
+                        + " " + present.dataAt(2) + " " + present.dataAt(3));
+            }
+            System.out.println("===========end============");
+
         } catch (IOException e) {
             System.out.println("Sort Merge Error: cannot write to output steam");
         }
@@ -372,7 +388,7 @@ public class SortMerge extends Operator {
         } catch (FileNotFoundException e) {
             System.out.println("Error: file not found");
         } catch (IOException e) {
-            System.out.println("Error: cannot open/write to temp file");
+            System.out.println("Initialise Error: cannot open/write to temp file " + resultFile.getName());
         }
         return null;
     }
@@ -380,12 +396,12 @@ public class SortMerge extends Operator {
     private Batch getNextBatch(ObjectInputStream in) {
         try {
             Batch b = (Batch) in.readObject();
-            if (b.isEmpty()) {
-                System.out.println("Note: empty batch");
+            if (b == null) {
+                System.out.println("Note: batch is null");
             }
             return b;
         } catch (IOException e) {
-            System.out.println("Error: cannot open/write to temp file");
+            System.out.println("GetNextBatch Error: cannot open/write to temp file");
             return null;
         } catch (ClassNotFoundException e) {
             System.out.println("Error: class not found");
@@ -405,7 +421,7 @@ public class SortMerge extends Operator {
         } catch (FileNotFoundException e) {
             System.out.println("Error: file not found");
         } catch (IOException e) {
-            System.out.println("Error: cannot open/write to temp file");
+            System.out.println("WriteToFile Error: cannot open/write to temp file");
         }
         return null;
     }

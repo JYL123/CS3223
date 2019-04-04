@@ -26,15 +26,15 @@ public class Block implements Serializable {
         return (Tuple) tuples.elementAt(id);
     }
 
-    public void setTuples(Vector tuples) {
+    public void setTuples(Vector tupleList) {
         Batch b = new Batch(pageSize);
-        for (int i = 0; i < tuples.size(); i++) {
+        for (int i = 0; i < tupleList.size(); i++) {
             if(b.isFull()) {
                 batches.add(b);
                 b = new Batch(pageSize);
             }
-            b.add((Tuple) tuples.get(i));
-            tuples.add((Tuple) tuples.get(i));
+            b.add((Tuple) tupleList.get(i));
+            tuples.add((Tuple) tupleList.get(i));
         }
         if (!b.isEmpty()) {
             batches.add(b);

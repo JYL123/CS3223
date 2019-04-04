@@ -70,10 +70,7 @@ public class Distinct extends SortMerge {
                         break;
                     }
                 }
-                if (last == null) {
-                    outPage.add(current);
-                    last = current;
-                } else if (result != 0) {
+                if (last == null || (result != 0)) {
                     outPage.add(current);
                     last = current;
                 } else {
@@ -92,5 +89,13 @@ public class Distinct extends SortMerge {
             }
         }
         return outPage;
+    }
+
+    public Object clone() {
+        Operator newbase = (Operator) base.clone();
+        Vector newAttr = (Vector) attrSet.clone();
+        Distinct newDistinct = new Distinct(newbase, newAttr, optype);
+        newDistinct.setSchema(newbase.getSchema());
+        return newDistinct;
     }
 }
