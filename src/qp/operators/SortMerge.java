@@ -158,11 +158,11 @@ public class SortMerge extends Operator {
         int numInputBuffer = numBuff - 1;
         int instanceNumber = 0;
         List<File> resultSortedFiles;
-        while(sortedFiles.size() > 1) {
+        while(sortedFiles.size() > 1) { // more than one run is left
             resultSortedFiles = new ArrayList<>();
             int numMergeRuns = 0;
             for (int i = 0; i * numInputBuffer < sortedFiles.size(); i++) {
-                // number of files being sorted equals to the number of input buffers
+                // number of files being sorted equals to the size of input buffers
                 int start = i * numInputBuffer;
                 int end = start + numInputBuffer;
                 if (end >= sortedFiles.size()) { // the last run may not use up all the input buffers
@@ -186,7 +186,7 @@ public class SortMerge extends Operator {
     private File mergeSortedRuns(List<File> runs, int instanceNumber, int numMergeRuns) {
         int runIndex; // a cursor pointing at the index of list of runs
         int numInputBuffer = numBuff - 1;
-        boolean needsAdditionalBuff = (numInputBuffer > numRuns);
+        boolean hasAdditionalBuffer = (numInputBuffer > runs.size());
 
         if (numInputBuffer < runs.size()) {
             System.out.println("Error: number of runs exceeds capacity of input buffer. Sorting terminates.");
@@ -228,7 +228,7 @@ public class SortMerge extends Operator {
         Batch outBuffer = new Batch(batchsize);
         Batch temp;
 
-        if(needsAdditionalBuff) {
+        if(hasAdditionalBuffer) {
             Queue<Tuple> inputTuples = new PriorityQueue<>(runs.size(), new AttrComparator(attrIndex));
             Map<Tuple, Integer> tupleRunIndexMap = new HashMap<>(runs.size());
             for (int j = 0; j < runs.size(); j++) {
