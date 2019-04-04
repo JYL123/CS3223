@@ -63,7 +63,8 @@ public class SortMerge extends Operator {
         }
 
         /* set number of tuples per page**/
-        int tuplesize = schema.getTupleSize();
+        int tuplesize = base.getSchema().getTupleSize();
+        int test = Batch.getPageSize();
         batchsize = Batch.getPageSize() / tuplesize;
 
         Schema baseSchema = base.getSchema();
@@ -94,8 +95,7 @@ public class SortMerge extends Operator {
                 Collections.sort(tuples, new AttrComparator(attrIndex));
 
                 Block sortedRun = new Block(numBuff, batchsize);
-                sortedRun.setTuples(tuples);
-//                int testSize = tuples.size();
+                sortedRun.setTuples((Vector)tuples);
                 File f = writeToFile(sortedRun, numRuns);
                 sortedFiles.add(f);
             }
@@ -103,6 +103,31 @@ public class SortMerge extends Operator {
             /** merge sorted runs **/
 //            System.out.println("~~~~~~~~~~~~~~~~~` Merge sorted runs");
             mergeSortedFiles();
+            for(int i=0; i<sortedFiles.size(); i++) {
+                System.out.println("==========merge result " + i + "=============");
+                try {
+                    int count = 0;
+                    in = new ObjectInputStream(new FileInputStream(sortedFiles.get(i)));
+                    while (true) {
+                        Batch batch = getNextBatch(in);
+                        if (batch == null)
+                            break;
+                        count++;
+                        for (int j = 0; j < batch.size(); j++) {
+                            Tuple present = batch.elementAt(j);
+                            System.out.print("tuple: ");
+                            for (int k = 0; k < present._data.size(); k++) {
+                                System.out.print(present.dataAt(k) + " ");
+                            }
+                            System.out.println();
+                        }
+                    }
+                    System.out.println("==========merge result end=============" + count);
+                    System.out.println();
+                } catch (Exception e) {
+                    System.err.println(" Error reading " + i + " of " + sortedFiles.size());
+                }
+            }
 
             try {
                 in = new ObjectInputStream(new FileInputStream(sortedFiles.get(0)));
@@ -127,15 +152,18 @@ public class SortMerge extends Operator {
         if (sortedFiles.size() != 1) {
             System.out.println("Error: incorrectly sorted");
         }
-        try {
-            Batch b = (Batch) in.readObject();
-            return b;
-        } catch (IOException e) {
-            return null;
-        } catch (ClassNotFoundException e) {
-            System.out.println("Error: file not found");
-        }
-        return null;
+//        try {
+////            Batch b = (Batch) in.readObject();
+//            Batch b = getNextBatch(in);
+//            return b;
+//        } catch (IOException e) {
+//            return null;
+//        } catch (ClassNotFoundException e) {
+//            System.out.println("Error: file not found");
+//        }
+//        return null;
+        Batch b = getNextBatch(in);
+        return b;
     }
 
 
@@ -248,8 +276,10 @@ public class SortMerge extends Operator {
 
             while (!inputTuples.isEmpty()) {
                 Tuple minTuple = inputTuples.remove();
+//                System.out.println("MIN_TUPLE: " + minTuple.dataAt(0) + " " + minTuple.dataAt(1)
+//                        + " " + minTuple.dataAt(2) + " " + minTuple.dataAt(3));
                 outBuffer.add(minTuple);
-                if (outBuffer.isFull()) { // write entries to the output buffer
+                if (outBuffer.isFull()) { // write entries in the output buffer to output stream
                     writeToOutput(outBuffer, out);
                     outBuffer.clear();
                 }
@@ -288,6 +318,8 @@ public class SortMerge extends Operator {
 
                 // add minTuple to output buffer
                 Tuple minTuple = temp.remove(0);
+//                System.out.println("MINTUPLE: " + minTuple.dataAt(0) + " " + minTuple.dataAt(1)
+//                        + " " + minTuple.dataAt(2) + " " + minTuple.dataAt(3));
                 outBuffer.add(minTuple);
                 // write result in output buffer into out stream
                 if (outBuffer.isFull()) {
@@ -370,6 +402,14 @@ public class SortMerge extends Operator {
         try {
             out.writeObject(outBuffer);
             out.reset();
+//            System.out.println("=========append result==============");
+//            for (int j = 0; j < outBuffer.size(); j++) {
+//                Tuple present = outBuffer.elementAt(j);
+//                System.out.println("tuple: " + present.dataAt(0) + " " + present.dataAt(1)
+//                        + " " + present.dataAt(2) + " " + present.dataAt(3));
+//            }
+//            System.out.println("===========end============");
+
         } catch (IOException e) {
             System.out.println("Sort Merge Error: cannot write to output steam");
         }
@@ -400,7 +440,7 @@ public class SortMerge extends Operator {
             }
             return b;
         } catch (IOException e) {
-            System.out.println("GetNextBatch Error: cannot open/write to temp file");
+            System.out.println("GetNextBatch: cannot open/write to temp file");
             return null;
         } catch (ClassNotFoundException e) {
             System.out.println("Error: class not found");
