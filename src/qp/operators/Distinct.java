@@ -60,11 +60,11 @@ public class Distinct extends SortMerge {
 
                 Tuple current = inPage.elementAt(i);
 
-//                Debug.PPrint(tuple);
 
 
                 if (last == null) {
                     outPage.add(current);
+                    Debug.PPrint(current);
                     last = current;
                 }
 
@@ -78,6 +78,7 @@ public class Distinct extends SortMerge {
                     }
                     if (result != 0) {
                         outPage.add(current);
+                        Debug.PPrint(current);
                         last = current;
                     } else {
                         continue;

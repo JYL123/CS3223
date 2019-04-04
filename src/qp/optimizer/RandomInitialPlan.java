@@ -60,7 +60,7 @@ public class RandomInitialPlan{
 	if(numJoin !=0){
 	    createJoinOp();
 	}
-	createSortMergeOp();
+	createDistinctOp();
 	createProjectOp();
 	return root;
     }
@@ -201,7 +201,19 @@ public class RandomInitialPlan{
             projectlist = new Vector();
 
 
-	    if (isDistinct) {
+
+        if(!projectlist.isEmpty()){
+            root = new Project(base,projectlist,OpType.PROJECT);
+            Schema newSchema = base.getSchema().subSchema(projectlist);
+            root.setSchema(newSchema);
+        }
+    }
+
+    private void createDistinctOp() {
+
+        Operator base = root;
+
+        if (isDistinct) {
             Schema newSchema;
             if (projectlist.isEmpty()) {
                 projectlist = base.getSchema().getAttList();
@@ -213,17 +225,6 @@ public class RandomInitialPlan{
             root = new Distinct(base, projectlist, OpType.DISTINCT);
             root.setSchema(newSchema);
         }
-        else if(!projectlist.isEmpty()){
-            root = new Project(base,projectlist,OpType.PROJECT);
-            Schema newSchema = base.getSchema().subSchema(projectlist);
-            root.setSchema(newSchema);
-        }
-    }
-
-    private void createSortMergeOp() {
-        // not implemented at the moment
-        // possibly merge Distinct and GroupBy into SortMergeOp
-        return;
     }
 
     private void modifyHashtable(Operator old, Operator newop){
