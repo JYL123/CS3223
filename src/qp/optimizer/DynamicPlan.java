@@ -289,7 +289,7 @@ public class DynamicPlan{
                 Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
                 Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
 
-                // avoid cross product
+
                 Condition cn = null;
 
                 int conditionIndex = 0;
@@ -299,8 +299,24 @@ public class DynamicPlan{
                             || ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))){
                         cn = temp;
 
-                        if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))) jn = new Join(left,right,cn,OpType.JOIN);
-                        if(((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))) jn = new Join(right,left,cn,OpType.JOIN);
+                        if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))) {
+                            jn = new Join(left,right,cn,OpType.JOIN);
+                            Schema newsche = left.getSchema().joinWith(right.getSchema());
+                            jn.setSchema(newsche);
+                            int joinMeth = getJoinMethod(minLhsJoin, minRhsJoin);
+                            jn.setJoinType(joinMeth);
+                            String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
+                            tab_op_hash.put(combinedName,jn);
+                        }
+                        if(((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))) {
+                            jn = new Join(right,left,cn,OpType.JOIN);
+                            Schema newsche = right.getSchema().joinWith(left.getSchema());
+                            jn.setSchema(newsche);
+                            int joinMeth = getJoinMethod(minRhsJoin, minLhsJoin);
+                            jn.setJoinType(joinMeth);
+                            String combinedName = getCombinedTablesName(minRhsJoin, minLhsJoin);
+                            tab_op_hash.put(combinedName,jn);
+                        }
 
                         break;
                     }
@@ -308,23 +324,9 @@ public class DynamicPlan{
                 }
                 System.out.println("conditionIndex is " + conditionIndex);
 
+                // avoid cross product
                 if(cn == null) continue;
 
-
-                //jn = new Join(left,right,cn,OpType.JOIN);
-                jn.setNodeIndex(i-2);
-                Schema newsche = left.getSchema().joinWith(right.getSchema());
-                jn.setSchema(newsche);
-                /** return a join method that gives least cost**/
-                int joinMeth = getJoinMethod(minLhsJoin, minRhsJoin);
-                jn.setJoinType(joinMeth);
-
-                String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
-                System.out.println(combinedName);
-                //insert sub-plans
-                tab_op_hash.put(combinedName,jn);
-                //modifyHashtable(left,jn);
-                //modifyHashtable(right,jn);
             }
 
         }
