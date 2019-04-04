@@ -56,19 +56,14 @@ public class Distinct extends SortMerge {
             //            System.out.println("DISTINCT: check incoming page ----------------");
 
             for (i = pos; i < inPage.size(); i++) {
-                System.out.println("debugging message +++++++++++++++++++++++[" + i + "]");
-
+//                System.out.println("debugging message +++++++++++++++++++++++[" + i + "]");
                 Tuple current = inPage.elementAt(i);
-
-
 
                 if (last == null) {
                     outPage.add(current);
-                    Debug.PPrint(current);
+//                    Debug.PPrint(current);
                     last = current;
-                }
-
-                else {
+                } else {
                     int result = 0;
                     for (int index : attrIndex) {
                         result = Tuple.compareTuples(last, current, index, index);
@@ -78,13 +73,12 @@ public class Distinct extends SortMerge {
                     }
                     if (result != 0) {
                         outPage.add(current);
-                        Debug.PPrint(current);
+//                        Debug.PPrint(current);
                         last = current;
                     } else {
                         continue;
                     }
                 }
-
 
                 if (outPage.isFull()) {
                     return outPage;

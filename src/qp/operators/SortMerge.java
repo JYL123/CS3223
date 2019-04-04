@@ -24,7 +24,6 @@ public class SortMerge extends Operator {
     boolean eos;
 
 
-
     public SortMerge(Operator base, Vector attrSet, int opType) {
         super(opType);
         this.base = base;
@@ -53,7 +52,9 @@ public class SortMerge extends Operator {
         return numBuff;
     }
 
-    /** opens the connection to the base operator **/
+    /**
+     * opens the connection to the base operator
+     **/
     public boolean open() {
 
         if (numBuff < 3) {
@@ -69,16 +70,16 @@ public class SortMerge extends Operator {
         attrIndex = new int[attrSet.size()];
         for (int i = 0; i < attrSet.size(); i++) {
             Attribute a = (Attribute) attrSet.elementAt(i);
-            System.out.println("\nSORT attribute: -------------------------------");
-            Debug.PPrint(a);
+//            System.out.println("\nSORT attribute: -------------------------------");
+//            Debug.PPrint(a);
             int id = baseSchema.indexOf(a);
             attrIndex[i] = id;
         }
 
         if (base.open()) {
             /** generate sorted runs **/
-            System.out.println("~~~~~~~~~~~~~~~~~` Generate sorted runs");
-            sortedFiles = new ArrayList<File>();
+//            System.out.println("~~~~~~~~~~~~~~~~~` Generate sorted runs");
+            sortedFiles = new ArrayList<>();
             numRuns = 0;
             /** read the tuples in buffer as much as possible **/
             Batch inBatch = base.next();
@@ -93,14 +94,14 @@ public class SortMerge extends Operator {
                 Collections.sort(tuples, new AttrComparator(attrIndex));
 
                 Block sortedRun = new Block(numBuff, batchsize);
-                sortedRun.setTuples((Vector) tuples);
-                int testSize = tuples.size();
+                sortedRun.setTuples(tuples);
+//                int testSize = tuples.size();
                 File f = writeToFile(sortedRun, numRuns);
                 sortedFiles.add(f);
             }
 
             /** merge sorted runs **/
-            System.out.println("~~~~~~~~~~~~~~~~~` Merge sorted runs");
+//            System.out.println("~~~~~~~~~~~~~~~~~` Merge sorted runs");
             mergeSortedFiles();
 
 
@@ -114,14 +115,15 @@ public class SortMerge extends Operator {
                 return false;
             }
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
 
 
-    /** returns a batch of tuples **/
+    /**
+     * returns a batch of tuples
+     **/
     public Batch next() {
         if (sortedFiles.size() != 1) {
             System.out.println("Error: incorrectly sorted");
@@ -138,9 +140,11 @@ public class SortMerge extends Operator {
     }
 
 
-    /** closes the operator **/
+    /**
+     * closes the operator
+     **/
     public boolean close() {
-        for (File f: sortedFiles) {
+        for (File f : sortedFiles) {
             f.delete();
         }
         try {
@@ -152,13 +156,14 @@ public class SortMerge extends Operator {
     }
 
 
-
-    /** recursively merge until the last run is left **/
+    /**
+     * recursively merge until the last run is left
+     **/
     private void mergeSortedFiles() {
         int numInputBuffer = numBuff - 1;
         int instanceNumber = 0;
         List<File> resultSortedFiles;
-        while(sortedFiles.size() > 1) { // more than one run is left
+        while (sortedFiles.size() > 1) { // more than one run is left
             resultSortedFiles = new ArrayList<>();
             int numMergeRuns = 0;
             for (int i = 0; i * numInputBuffer < sortedFiles.size(); i++) {
@@ -175,7 +180,7 @@ public class SortMerge extends Operator {
                 resultSortedFiles.add(singleSortedFile);
             }
 
-            for (File f: sortedFiles) {
+            for (File f : sortedFiles) {
                 f.delete();
             }
             sortedFiles = resultSortedFiles;
@@ -220,15 +225,11 @@ public class SortMerge extends Operator {
         }
 
 
-
-
-
-
         /** write results to output stream **/
         Batch outBuffer = new Batch(batchsize);
         Batch temp;
 
-        if(hasAdditionalBuffer) {
+        if (hasAdditionalBuffer) {
             Queue<Tuple> inputTuples = new PriorityQueue<>(runs.size(), new AttrComparator(attrIndex));
             Map<Tuple, Integer> tupleRunIndexMap = new HashMap<>(runs.size());
             for (int j = 0; j < runs.size(); j++) {
@@ -250,8 +251,6 @@ public class SortMerge extends Operator {
                 Tuple minTuple = inputTuples.remove();
                 outBuffer.add(minTuple);
                 if (outBuffer.isFull()) { // write entries to the output buffer
-                    System.out.println("----------- full in if --------------");
-
                     writeToOutput(outBuffer, out);
                     outBuffer.clear();
                 }
@@ -278,14 +277,12 @@ public class SortMerge extends Operator {
 
             // add the remaining tuples in output buffer to output stream
             if (!outBuffer.isEmpty()) {
-                System.out.println("----------- remainder in if --------------");
                 writeToOutput(outBuffer, out);
                 outBuffer.clear();
             }
 
             tupleRunIndexMap.clear();
-        }
-        else {
+        } else {
             while (!completesExtraction(inBuffers)) {
                 runIndex = getIndexOfMinTuple(inBuffers);
                 temp = inBuffers.get(runIndex);
@@ -295,13 +292,11 @@ public class SortMerge extends Operator {
                 outBuffer.add(minTuple);
                 // write result in output buffer into out stream
                 if (outBuffer.isFull()) {
-                    System.out.println("----------- full in else --------------");
-
                     writeToOutput(outBuffer, out);
                     outBuffer.clear();
                 }
 
-                if(temp.isEmpty()) {
+                if (temp.isEmpty()) {
                     temp = getNextBatch(inputStreams.get(runIndex));
                     inBuffers.set(runIndex, temp);
                 }
@@ -309,7 +304,6 @@ public class SortMerge extends Operator {
 
             // add the remaining tuples in output buffer to output stream
             if (!outBuffer.isEmpty()) {
-                System.out.println("----------- remainder in else --------------");
                 writeToOutput(outBuffer, out);
                 outBuffer.clear();
             }
@@ -328,12 +322,12 @@ public class SortMerge extends Operator {
 
     private int getIndexOfMinTuple(ArrayList<Batch> inBuffers) {
         Tuple minTuple = null;
-        int index = 0;
+        int minIndex = 0;
         // get the first non-null tuple in the input buffer
         for (int i = 0; i < inBuffers.size(); i++) {
             if (inBuffers.get(i) != null) {
                 minTuple = inBuffers.get(i).elementAt(0);
-                index = i;
+                minIndex = i;
             }
         }
         // compare the entire input buffer to find the actual min
@@ -341,24 +335,24 @@ public class SortMerge extends Operator {
             if (inBuffers.get(j) != null) {
                 Tuple current = inBuffers.get(j).elementAt(0);
                 int result = 0;
-                for (int idx: attrIndex) {
-                    result = Tuple.compareTuples(current, minTuple, index, index);
+                for (int idx : attrIndex) {
+                    result = Tuple.compareTuples(current, minTuple, idx, idx);
                     if (result != 0) {
                         break;
                     }
                 }
-                if(result < 0) {
+                if (result < 0) {
                     minTuple = current;
-                    index = j;
+                    minIndex = j;
                 }
             }
         }
-        return index;
+        return minIndex;
     }
 
     private boolean completesExtraction(ArrayList<Batch> inBuffers) {
         for (int i = 0; i < inBuffers.size(); i++) {
-            if(inBuffers.get(i) != null) {
+            if (inBuffers.get(i) != null) {
                 return false;
             }
         }
@@ -370,14 +364,6 @@ public class SortMerge extends Operator {
         try {
             out.writeObject(outBuffer);
             out.reset();
-            System.out.println("=========append result==============");
-            for (int j = 0; j < outBuffer.size(); j++) {
-                Tuple present = outBuffer.elementAt(j);
-                System.out.println("tuple: " + present.dataAt(0) + " " + present.dataAt(1)
-                        + " " + present.dataAt(2) + " " + present.dataAt(3));
-            }
-            System.out.println("===========end============");
-
         } catch (IOException e) {
             System.out.println("Sort Merge Error: cannot write to output steam");
         }
@@ -414,7 +400,7 @@ public class SortMerge extends Operator {
         try {
             File temp = new File("SMTemp-" + numRuns);
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(temp));
-            for (Batch b: sortedRun.getBatches()) {
+            for (Batch b : sortedRun.getBatches()) {
                 out.writeObject(b);
             }
             out.close();
