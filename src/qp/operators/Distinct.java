@@ -5,6 +5,8 @@ import qp.utils.Tuple;
 
 import java.util.Vector;
 
+import static qp.utils.Tuple.compareTuples;
+
 public class Distinct extends SortMerge {
 
     Batch inPage;
@@ -60,10 +62,18 @@ public class Distinct extends SortMerge {
 
 //                Debug.PPrint(tuple);
 
+
+                int result = 0;
+                for (int index: attrIndex) {
+                    result = compareTuples(last, current, index, index);
+                    if (result != 0) {
+                        break;
+                    }
+                }
                 if (last == null) {
                     outPage.add(current);
                     last = current;
-                } else if (Tuple.compareTuples(last, current, attrIndex) != 0) {
+                } else if (result != 0) {
                     outPage.add(current);
                     last = current;
                 } else {

@@ -2,6 +2,8 @@ package qp.utils;
 
 import java.util.Comparator;
 
+import static qp.utils.Tuple.compareTuples;
+
 public class AttrComparator implements Comparator<Tuple> {
     private int[] attrIndex;
 
@@ -11,7 +13,14 @@ public class AttrComparator implements Comparator<Tuple> {
 
     @Override
     public int compare(Tuple t1, Tuple t2) {
-        return Tuple.compareTuples(t1, t2, attrIndex);
+        int result;
+        for (int index: attrIndex) {
+            result = compareTuples(t1, t2, index, index);
+            if (result != 0) {
+                return result;
+            }
+        }
+        return 0;
     }
 
 }

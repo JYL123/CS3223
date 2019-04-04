@@ -61,18 +61,6 @@ public class Tuple implements Serializable {
         return compareTuples(left,right,index,index);
     }
 
-    /** Compare two tuples in the same table based on a given list of attributes **/
-    public static int compareTuples(Tuple left, Tuple right, int[] indexList) {
-        int result;
-        for (int index: indexList) {
-            result = compareTuples(left, right, index);
-            if (result != 0) { // two tuples are not the same on given attribute
-                return result;
-            }
-        }
-        // two tuples are the same on all attributes given
-        return 0;
-    }
 
 
     	/** comparing tuples in different tables, used for join condition checking **/
