@@ -103,31 +103,6 @@ public class SortMerge extends Operator {
             /** merge sorted runs **/
 //            System.out.println("~~~~~~~~~~~~~~~~~` Merge sorted runs");
             mergeSortedFiles();
-            for(int i=0; i<sortedFiles.size(); i++) {
-                System.out.println("==========merge result " + i + "=============");
-                try {
-                    int count = 0;
-                    in = new ObjectInputStream(new FileInputStream(sortedFiles.get(i)));
-                    while (true) {
-                        Batch batch = getNextBatch(in);
-                        if (batch == null)
-                            break;
-                        count++;
-                        for (int j = 0; j < batch.size(); j++) {
-                            Tuple present = batch.elementAt(j);
-                            System.out.print("tuple: ");
-                            for (int k = 0; k < present._data.size(); k++) {
-                                System.out.print(present.dataAt(k) + " ");
-                            }
-                            System.out.println();
-                        }
-                    }
-                    System.out.println("==========merge result end=============" + count);
-                    System.out.println();
-                } catch (Exception e) {
-                    System.err.println(" Error reading " + i + " of " + sortedFiles.size());
-                }
-            }
 
             try {
                 in = new ObjectInputStream(new FileInputStream(sortedFiles.get(0)));
@@ -276,8 +251,6 @@ public class SortMerge extends Operator {
 
             while (!inputTuples.isEmpty()) {
                 Tuple minTuple = inputTuples.remove();
-//                System.out.println("MIN_TUPLE: " + minTuple.dataAt(0) + " " + minTuple.dataAt(1)
-//                        + " " + minTuple.dataAt(2) + " " + minTuple.dataAt(3));
                 outBuffer.add(minTuple);
                 if (outBuffer.isFull()) { // write entries in the output buffer to output stream
                     writeToOutput(outBuffer, out);
@@ -318,8 +291,6 @@ public class SortMerge extends Operator {
 
                 // add minTuple to output buffer
                 Tuple minTuple = temp.remove(0);
-//                System.out.println("MINTUPLE: " + minTuple.dataAt(0) + " " + minTuple.dataAt(1)
-//                        + " " + minTuple.dataAt(2) + " " + minTuple.dataAt(3));
                 outBuffer.add(minTuple);
                 // write result in output buffer into out stream
                 if (outBuffer.isFull()) {

@@ -49,25 +49,23 @@ public class Distinct extends SortMerge {
                     eos = true;
                     return outPage;
                 }
-
-                for (int j = 0; j < inPage.size(); j++) {
-                    Tuple present = inPage.elementAt(j);
-                    System.out.print("TUPLE: ");
-                    for (int k = 0; k < present._data.size(); k++) {
-                        System.out.print(present.dataAt(k) + " ");
-                    }
-                    System.out.println();
-                }
+//                for (int j = 0; j < inPage.size(); j++) {
+//                    Tuple present = inPage.elementAt(j);
+//                    System.out.print("TUPLE: ");
+//                    for (int k = 0; k < present._data.size(); k++) {
+//                        System.out.print(present.dataAt(k) + " ");
+//                    }
+//                    System.out.println();
+//                }
             }
 
             //            System.out.println("DISTINCT: check incoming page ----------------");
 
             for (i = pos; i < inPage.size(); i++) {
-                System.out.println("size = " + inPage.size());
                 //                System.out.println("debugging message +++++++++++++++++++++++[" + i + "]");
                 Tuple current = inPage.elementAt(i);
-                System.out.println("~~~~~~~~~~~~~~~~ i = " + i + " ~~~~~~~~~~~~~~~~~~~~~~");
-                Debug.PPrint(current);
+//                System.out.println("~~~~~~~~~~~~~~~~ i = " + i + " ~~~~~~~~~~~~~~~~~~~~~~");
+//                Debug.PPrint(current);
 
 
                 if (last == null) {
@@ -88,10 +86,6 @@ public class Distinct extends SortMerge {
                         last = current;
                     }
                 }
-
-//                if (outPage.isFull()) {
-//                    return outPage;
-//                }
             }
 
             if (i == inPage.size()) {
