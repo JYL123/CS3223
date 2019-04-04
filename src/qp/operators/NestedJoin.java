@@ -147,8 +147,8 @@ public class NestedJoin extends Join{
 	    while(eosr==false){
 
 		try{
-		    if(rcurs==0 && lcurs==0){
-			rightbatch = (Batch) in.readObject();
+		    if(rcurs==0 && lcurs==0) {
+		    	rightbatch = (Batch) in.readObject();
 		    }
 
 		    for(i=lcurs;i<leftbatch.size();i++){

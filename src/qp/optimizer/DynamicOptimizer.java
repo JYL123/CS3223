@@ -48,7 +48,7 @@ public class DynamicOptimizer{
 
                 case JoinType.BLOCKNESTED:
 
-                    NestedJoin bj = new NestedJoin((Join) node);
+                    BlockNestedLoopsJoin bj = new BlockNestedLoopsJoin((Join) node);
                     /* + other code */
                     return bj;
 
@@ -60,8 +60,11 @@ public class DynamicOptimizer{
 
                 case JoinType.HASHJOIN:
 
-                    NestedJoin hj = new NestedJoin((Join) node);
+                    HashJoin hj = new HashJoin((Join) node);
                     /* + other code */
+                    hj.setLeft(left);
+                    hj.setRight(right);
+                    hj.setNumBuff(numbuff);
                     return hj;
                 default:
                     return node;

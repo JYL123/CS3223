@@ -160,6 +160,7 @@ public class RandomOptimizer {
         }
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
+        finalPlan = getNeighbor(finalPlan);
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
@@ -397,8 +398,8 @@ public class RandomOptimizer {
             int numbuff = BufferManager.getBuffersPerJoin();
             switch (joinType) {
                 case JoinType.NESTEDJOIN:
-
                     NestedJoin nj = new NestedJoin((Join) node);
+                    //System.out.println("I am not nested join");
                     nj.setLeft(left);
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
@@ -408,19 +409,17 @@ public class RandomOptimizer {
                  replace with hasjoin, if implemented **/
 
                 case JoinType.BLOCKNESTED:
-
-                    NestedJoin bj = new NestedJoin((Join) node);
+                    //NestedJoin bj = new NestedJoin((Join) node);
+                    BlockNestedLoopsJoin bj = new BlockNestedLoopsJoin((Join) node);
+                    bj.setLeft(left);
+                    bj.setRight(right);
+                    bj.setNumBuff(numbuff);
+                    //BlockNestedLoopsJoin bj = new BlockNestedLoopsJoin((Join) node);
                     /* + other code */
                     return bj;
 
-                case JoinType.SORTMERGE:
-
-                    NestedJoin sm = new NestedJoin((Join) node);
-                    /* + other code */
-                    return sm;
-
                 case JoinType.HASHJOIN:
-
+                    //NestedJoin hj = new NestedJoin((Join) node);
                     HashJoin hj = new HashJoin((Join) node);
                     /* + other code */
                     hj.setLeft(left);
