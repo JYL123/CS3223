@@ -1,4 +1,6 @@
-/** Block represents a number of pages **/
+/**
+ * Block represents a number of pages
+ **/
 
 package qp.utils;
 
@@ -29,7 +31,7 @@ public class Block implements Serializable {
     public void setTuples(Vector tupleList) {
         Batch b = new Batch(pageSize);
         for (int i = 0; i < tupleList.size(); i++) {
-            if(b.isFull()) {
+            if (b.isFull()) {
                 batches.add(b);
                 b = new Batch(pageSize);
             }
@@ -82,8 +84,7 @@ public class Block implements Serializable {
     public boolean isFull() {
         if (batches.size() >= MAX_SIZE) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }

@@ -5,8 +5,6 @@ import qp.utils.Tuple;
 
 import java.util.Vector;
 
-import static qp.utils.Tuple.compareTuples;
-
 public class Distinct extends SortMerge {
 
     Batch inPage;
