@@ -214,7 +214,7 @@ public class SortMerge extends Operator {
         for (int i = 0; i < runs.size(); i++) {
             Batch b = getNextBatch(inputStreams.get(i));
             if (b == null) {
-                System.out.println("Merging Error: Run-" + i + " is empty");
+                System.out.println("========== Merging Error: Run-" + i + " is empty");
             }
             inBuffers.add(i, b);
         }
@@ -291,7 +291,8 @@ public class SortMerge extends Operator {
                 temp = inBuffers.get(runIndex);
 
                 // add minTuple to output buffer
-                outBuffer.add(temp.remove(0));
+                Tuple minTuple = temp.remove(0);
+                outBuffer.add(minTuple);
                 // write result in output buffer into out stream
                 if (outBuffer.isFull()) {
                     System.out.println("----------- full in else --------------");

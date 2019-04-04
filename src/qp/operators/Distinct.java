@@ -63,19 +63,27 @@ public class Distinct extends SortMerge {
 //                Debug.PPrint(tuple);
 
 
-                int result = 0;
-                for (int index: attrIndex) {
-                    result = Tuple.compareTuples(last, current, index, index);
-                    if (result != 0) {
-                        break;
-                    }
-                }
-                if (last == null || (result != 0)) {
+                if (last == null) {
                     outPage.add(current);
                     last = current;
-                } else {
-                    continue;
                 }
+
+                else {
+                    int result = 0;
+                    for (int index : attrIndex) {
+                        result = Tuple.compareTuples(last, current, index, index);
+                        if (result != 0) {
+                            break;
+                        }
+                    }
+                    if (result != 0) {
+                        outPage.add(current);
+                        last = current;
+                    } else {
+                        continue;
+                    }
+                }
+
 
                 if (outPage.isFull()) {
                     return outPage;
