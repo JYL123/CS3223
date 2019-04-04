@@ -160,7 +160,7 @@ public class RandomOptimizer {
         }
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
-        finalPlan = getNeighbor(finalPlan);
+        //finalPlan = getNeighbor(finalPlan);
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;

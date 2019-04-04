@@ -124,6 +124,7 @@ public class DynamicPlan{
 
         createProjectOp();
 
+        Debug.PPrint(root);
         PlanCost pc = new PlanCost();
         System.out.println("The cost for this plan is:  " + pc.getCost(root));
 
@@ -278,6 +279,7 @@ public class DynamicPlan{
                     }
                 }
 
+
                 /** record down the min cost for this combination*/
                 costTable.put(combination, minCost);
                 /** record down the resultant table(tablename, number of tuples, schema) for this combination*/
@@ -287,18 +289,29 @@ public class DynamicPlan{
                 Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
                 Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
 
-                Condition cn = null; //(Condition) joinlist.elementAt(i-2);
+                // avoid cross product
+                Condition cn = null;
 
                 int conditionIndex = 0;
                 for (int z = 0; z < joinlist.size(); z ++) {
                     Condition temp = (Condition) joinlist.elementAt(z);
-                    if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin)))
+                    if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))
+                            || ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))){
                         cn = temp;
+
+                        if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))) jn = new Join(left,right,cn,OpType.JOIN);
+                        if(((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))) jn = new Join(right,left,cn,OpType.JOIN);
+
+                        break;
+                    }
                     conditionIndex++;
                 }
                 System.out.println("conditionIndex is " + conditionIndex);
 
-                jn = new Join(left,right,cn,OpType.JOIN);
+                if(cn == null) continue;
+
+
+                //jn = new Join(left,right,cn,OpType.JOIN);
                 jn.setNodeIndex(i-2);
                 Schema newsche = left.getSchema().joinWith(right.getSchema());
                 jn.setSchema(newsche);
@@ -447,26 +460,21 @@ public class DynamicPlan{
 
         double nestedJoin = lhspages*rhspages + lhspages;
         double blockNested = ((int) Math.ceil(lhspages/blocksSize)*rhspages) + lhspages;
-        double sortmMerge = Double.MAX_VALUE;
+        double sortMerge = Double.MAX_VALUE;
         double hashJoin = 3*(lhspages + rhspages);
 
         ArrayList<Double> costArray = new ArrayList<Double>();
         costArray.add(nestedJoin);
         costArray.add(blockNested);
         costArray.add(hashJoin);
-        costArray.add(sortmMerge);
+        costArray.add(sortMerge);
         Collections.sort(costArray);
 
-        for (Double cost : costArray) {
-            System.out.println(cost);
-        }
+        double totalcost = lhsPlanCost + rhsPlanCost + costArray.get(0);
+        System.out.println("cost computed for this plan: " + totalcost);
 
-        System.out.println("cost computed for this plan: ");
-        System.out.println(lhsPlanCost);
-        System.out.println(rhsPlanCost);
-        System.out.println(costArray.get(0));
 
-        return lhsPlanCost + rhsPlanCost + costArray.get(0);
+        return totalcost;
     }
 
     /** return a set of table's attriute, which will contain information used in cost computation*/
@@ -635,9 +643,10 @@ public class DynamicPlan{
             ArrayList<String> tableCombo = new ArrayList<String>();
             tableCombo.add(jointTablesList.get(i).getTableName());
             System.out.println("The number of tuples: " + jointTablesList.get(i).getNumTuples());
-            //System.out.println("The by of tupes: " + jointTablesList.get(i).getNumTuples());
+            System.out.println("The tuple size is : " + jointTablesList.get(i).getSchema().getTupleSize());
 
             int numTuplesPerPage = (int) Math.ceil(Batch.getPageSize()/jointTablesList.get(i).getSchema().getTupleSize());
+            System.out.println("The number of tuple per page : " + jointTablesList.get(i).getSchema().getTupleSize());
             double cost =jointTablesList.get(i).getNumTuples()/numTuplesPerPage;
 
             costTable.put(tableCombo, cost);
@@ -685,13 +694,13 @@ public class DynamicPlan{
 
     public void createProjectOp(){
         Operator base = root;
+        System.out.println("root is: ");
+        System.out.println(root);
         if ( projectlist == null )
             projectlist = new Vector();
 
         if(!projectlist.isEmpty()){
             root = new Project(base,projectlist,OpType.PROJECT);
-            if(root != null) System.out.println(root);
-            if(base == null) System.out.println("base is null");
             Schema newSchema = base.getSchema().subSchema(projectlist);
             root.setSchema(newSchema);
         }
