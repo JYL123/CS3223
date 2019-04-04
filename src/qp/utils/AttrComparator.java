@@ -15,7 +15,7 @@ public class AttrComparator implements Comparator<Tuple> {
     public int compare(Tuple t1, Tuple t2) {
         int result;
         for (int index: attrIndex) {
-            result = compareTuples(t1, t2, index, index);
+            result = Tuple.compareTuples(t1, t2, index, index);
             if (result != 0) {
                 return result;
             }

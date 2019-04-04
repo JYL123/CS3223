@@ -65,7 +65,7 @@ public class Distinct extends SortMerge {
 
                 int result = 0;
                 for (int index: attrIndex) {
-                    result = compareTuples(last, current, index, index);
+                    result = Tuple.compareTuples(last, current, index, index);
                     if (result != 0) {
                         break;
                     }

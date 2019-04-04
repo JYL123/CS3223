@@ -6,6 +6,8 @@ import qp.utils.*;
 import java.io.*;
 import java.util.*;
 
+import static qp.utils.Tuple.compareTuples;
+
 public class SortMerge extends Operator {
 
     Operator base;
@@ -54,6 +56,11 @@ public class SortMerge extends Operator {
     /** opens the connection to the base operator **/
     public boolean open() {
 
+        if (numBuff < 3) {
+            System.out.println("Error: Min number of buffer required is 3");
+            System.exit(1);
+        }
+
         /* set number of tuples per page**/
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
@@ -64,7 +71,7 @@ public class SortMerge extends Operator {
             Attribute a = (Attribute) attrSet.elementAt(i);
             System.out.println("\nSORT attribute: -------------------------------");
             Debug.PPrint(a);
-            int id = schema.indexOf(a);
+            int id = baseSchema.indexOf(a);
             attrIndex[i] = id;
         }
 
@@ -75,9 +82,9 @@ public class SortMerge extends Operator {
             numRuns = 0;
             /** read the tuples in buffer as much as possible **/
             Batch inBatch = base.next();
-            while (inBatch != null) {
+            while (inBatch != null && !inBatch.isEmpty()) {
                 Block run = new Block(numBuff, batchsize);
-                while (inBatch != null && !run.isFull()) {
+                while (inBatch != null && !inBatch.isEmpty() && !run.isFull()) {
                     run.addBatch(inBatch);
                     inBatch = base.next();
                 }
@@ -115,6 +122,9 @@ public class SortMerge extends Operator {
 
     /** returns a batch of tuples **/
     public Batch next() {
+        if (sortedFiles.size() != 1) {
+            System.out.println("Error: incorrectly sorted");
+        }
         try {
             Batch b = (Batch) in.readObject();
             return b;
@@ -129,7 +139,9 @@ public class SortMerge extends Operator {
 
     /** closes the operator **/
     public boolean close() {
-        sortedFiles.get(0).delete();
+        for (File f: sortedFiles) {
+            f.delete();
+        }
         try {
             in.close();
         } catch (IOException e) {
@@ -156,13 +168,24 @@ public class SortMerge extends Operator {
                     end = sortedFiles.size();
                 }
                 List<File> filesToBeSorted = sortedFiles.subList(start, end);
-                File singleSortedFile = mergeSortedRuns(filesToBeSorted, instanceNumber, numMergeRuns, numInputBuffer);
+                File singleSortedFile = mergeSortedRuns(filesToBeSorted, instanceNumber, numMergeRuns);
+
+                numMergeRuns++;
+                resultSortedFiles.add(singleSortedFile);
             }
+
+            for (File f: sortedFiles) {
+                f.delete();
+            }
+            sortedFiles = resultSortedFiles;
+            instanceNumber++;
         }
     }
 
-    private File mergeSortedRuns(List<File> runs, int instanceNumber, int numMergeRuns, int numInputBuffer) {
+    private File mergeSortedRuns(List<File> runs, int instanceNumber, int numMergeRuns) {
         int runIndex; // a cursor pointing at the index of list of runs
+        int numInputBuffer = numBuff - 1;
+        boolean needsAdditionalBuff = (numInputBuffer > numRuns);
 
         if (numInputBuffer < runs.size()) {
             System.out.println("Error: number of runs exceeds capacity of input buffer. Sorting terminates.");
@@ -195,62 +218,96 @@ public class SortMerge extends Operator {
             inBuffers.add(i, b);
         }
 
-        Queue<Tuple> inputTuples = new PriorityQueue<>(runs.size(), new AttrComparator(attrIndex));
-        Map<Tuple, Integer> tupleRunIndexMap = new HashMap<>(runs.size());
-        for (int j = 0; j < runs.size(); j++) {
-            Batch b = inBuffers.get(j);
-            Tuple t = b.remove(0);
 
-            inputTuples.add(t);
-            tupleRunIndexMap.put(t, j);
 
-            if (b.isEmpty()) {
-                b = getNextBatch(inputStreams.get(j));
-                inBuffers.set(j, b);
-                if (b == null) {
-                    System.out.println("Run-" + j + " has been processed");
-                }
-            }
-        }
+
+
 
         /** write results to output stream **/
         Batch outBuffer = new Batch(batchsize);
         Batch temp;
 
-        while (!inputTuples.isEmpty()) {
-            Tuple minTuple = inputTuples.remove();
-            outBuffer.add(minTuple);
-            if (outBuffer.isFull()) { // write entries to the output buffer
+        if(needsAdditionalBuff) {
+            Queue<Tuple> inputTuples = new PriorityQueue<>(runs.size(), new AttrComparator(attrIndex));
+            Map<Tuple, Integer> tupleRunIndexMap = new HashMap<>(runs.size());
+            for (int j = 0; j < runs.size(); j++) {
+                temp = inBuffers.get(j);
+                Tuple t = temp.remove(0);
+
+                inputTuples.add(t);
+                tupleRunIndexMap.put(t, j);
+
+                if (temp.isEmpty()) {
+                    temp = getNextBatch(inputStreams.get(j));
+                    inBuffers.set(j, temp);
+
+                }
+            }
+
+
+            while (!inputTuples.isEmpty()) {
+                Tuple minTuple = inputTuples.remove();
+                outBuffer.add(minTuple);
+                if (outBuffer.isFull()) { // write entries to the output buffer
+                    writeToOutput(outBuffer, out);
+                    outBuffer.clear();
+                }
+
+                // extract another tuple from the same run until there are no more tuples in this run
+                // and add the tuple into the queue
+                runIndex = tupleRunIndexMap.get(minTuple);
+                temp = inBuffers.get(runIndex);
+                if (temp != null) {
+                    Tuple t = temp.remove(0);
+
+                    inputTuples.add(t);
+                    tupleRunIndexMap.put(t, runIndex);
+
+                    if (temp.isEmpty()) {
+                        temp = getNextBatch(inputStreams.get(runIndex));
+                        inBuffers.set(runIndex, temp);
+//                        if (temp == null) {
+//                            System.out.println("Run-" + runIndex + " has been processed");
+//                        }
+                    }
+                }
+            }
+
+            // add the remaining tuples in output buffer to output stream
+            if (!outBuffer.isEmpty()) {
                 writeToOutput(outBuffer, out);
                 outBuffer.clear();
             }
 
-            // extract another tuple from the same run until there are no more tuples in this run
-            // and add the tuple into the queue
-            runIndex = tupleRunIndexMap.get(minTuple);
-            temp = inBuffers.get(runIndex);
-            if (temp != null) {
-                Tuple t = temp.remove(0);
+            tupleRunIndexMap.clear();
+        }
+        else {
+            while (!completesExtraction(inBuffers)) {
+                runIndex = getIndexofMinTuple(inBuffers);
+                temp = inBuffers.get(runIndex);
 
-                inputTuples.add(t);
-                tupleRunIndexMap.put(t, runIndex);
+                // add minTuple to output buffer
+                outBuffer.add(temp.remove(0));
+                // write result in output buffer into out stream
+                if (outBuffer.isFull()) {
+                    writeToOutput(outBuffer, out);
+                    outBuffer.clear();
+                }
 
-                if (temp.isEmpty()) {
+                if(temp.isEmpty()) {
                     temp = getNextBatch(inputStreams.get(runIndex));
                     inBuffers.set(runIndex, temp);
-                    if (temp == null) {
-                        System.out.println("Run-" + runIndex + " has been processed");
-                    }
                 }
             }
+
+            // add the remaining tuples in output buffer to output stream
+            if (!outBuffer.isEmpty()) {
+                writeToOutput(outBuffer, out);
+                outBuffer.clear();
+            }
+
         }
 
-        // add the remaining tuples in output buffer to output stream
-        if (!outBuffer.isEmpty()) {
-            writeToOutput(outBuffer, out);
-            outBuffer.clear();
-        }
-        tupleRunIndexMap.clear();
         try {
             out.close();
         } catch (IOException e) {
@@ -260,6 +317,44 @@ public class SortMerge extends Operator {
         return resultFile;
     }
 
+    private int getIndexofMinTuple(ArrayList<Batch> inBuffers) {
+        Tuple minTuple = null;
+        int index = 0;
+        // get the first non-null tuple in the input buffer
+        for (int i = 0; i < inBuffers.size(); i++) {
+            if (inBuffers.get(i) != null) {
+                minTuple = inBuffers.get(i).elementAt(0);
+                index = i;
+            }
+        }
+        // compare the entire input buffer to find the actual min
+        for (int j = 0; j < inBuffers.size(); j++) {
+            if (inBuffers.get(j) != null) {
+                Tuple current = inBuffers.get(j).elementAt(0);
+                int result = 0;
+                for (int idx: attrIndex) {
+                    result = Tuple.compareTuples(current, minTuple, index, index);
+                    if (result != 0) {
+                        break;
+                    }
+                }
+                if(result < 0) {
+                    minTuple = current;
+                    index = j;
+                }
+            }
+        }
+        return index;
+    }
+
+    private boolean completesExtraction(ArrayList<Batch> inBuffers) {
+        for (int i = 0; i < inBuffers.size(); i++) {
+            if(inBuffers.get(i) != null) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 
     private void writeToOutput(Batch outBuffer, ObjectOutputStream out) {
