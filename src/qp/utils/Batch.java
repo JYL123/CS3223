@@ -4,6 +4,7 @@
 
 package qp.utils;
 
+import java.util.Iterator;
 import java.util.Vector;
 import java.io.Serializable;
 
@@ -12,7 +13,7 @@ public class Batch implements Serializable {
     int MAX_SIZE;  // Number of tuples per page
     static int PageSize;  /* Number of bytes per page**/
 
-    Vector tuples; // The tuples in the page
+    Vector<Tuple> tuples; // The tuples in the page
 
     /** Set number of bytes per page **/
     public static void setPageSize(int size) {
@@ -80,5 +81,9 @@ public class Batch implements Serializable {
             return true;
         else
             return false;
+    }
+
+    public Iterator<Tuple> getIterator() {
+        return tuples.iterator();
     }
 }

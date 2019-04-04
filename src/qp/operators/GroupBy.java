@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Vector;
 
@@ -101,6 +103,9 @@ public class GroupBy extends Operator {
         Batch[] buffers = new Batch[numBuffer];
 
         buffers[0] = base.next();
+        ArrayList<Integer> runCounts = new ArrayList<>();
+        // Pass 0, # of runs produced
+        passCounts.add(runCounts);
         int initialRun = -1;
 
         while (buffers[0] != null) {
@@ -146,44 +151,107 @@ public class GroupBy extends Operator {
                 pageNum++;
                 pageWrite(buffers[0], generateFileName(0, initialRun, pageNum));
             }
+            runCounts.add(initialRun, pageNum + 1);
 
             buffers[0] = base.next();
         }
 
         /*
-         * Merge phase
+         * Sorting phase (into single run)
          */
+        for (int pass = 0; pass < passCounts.size(); pass++) {
+            // For each pass
+            ArrayList<Integer> preRunCounts = passCounts.get(pass);
+            if (preRunCounts.size() < 2) {
+                // Single run achieved
+                return true;
+            }
+
+            // Output buffer
+            buffers[buffers.length - 1] = new Batch(batchsize);
+            ArrayList<Integer> curRunCount = new ArrayList<>();
+            passCounts.add(curRunCount);
+            int runCurs = -1;
+            int newRunCount = 0;
+
+            while (runCurs + 1 < preRunCounts.size()) {
+                // New run in progress
+                // Each iterator used up a single batch page
+                ArrayList<Iterator<Tuple>> its = new ArrayList<>(numBuffer - 1);
+
+                for (int i = runCurs + 1; i < preRunCounts.size(); i++) {
+                    if (its.size() == numBuffer - 1) {
+                        break;
+                    }
+                    runCurs = i;
+                    // Load all runs into b -1 buffers
+                    Iterator<Tuple> it = new TupleIterator(generateFileNamePrefix(pass, runCurs), preRunCounts.get(runCurs));
+                    its.add(it);
+                }
+
+                int pagesGenerated = merge(its, buffers[buffers.length -1 ], pass + 1, newRunCount);
+                curRunCount.add(newRunCount, pagesGenerated);
+                newRunCount++;
+                its = new ArrayList<>(numBuffer - 1);
+                // End of one new run
+            }
+        // End of a pass
+        }
 
         return true;
     }
 
-    private Comparator<Vector> getComparator() {
-        return (x, y) -> {
-            for (int i = 0; i < x.size(); i++) {
-                Object leftdata = x.get(i);
-                Object rightdata = y.get(i);
-                int comp = 0;
-                if (leftdata instanceof Integer) {
-                    comp = ((Integer) leftdata).compareTo((Integer) rightdata);
-                } else if (leftdata instanceof String) {
-                    comp = ((String) leftdata).compareTo((String) rightdata);
+    private int merge(ArrayList<Iterator<Tuple>> its, Batch output, int nextPass, int run) {
+        int pageNum = -1;
+        TreeMap<Vector, Integer> map = new TreeMap<>(getComparator());
 
-                } else if (leftdata instanceof Float) {
-                    comp = ((Float) leftdata).compareTo((Float) rightdata);
-                } else {
-                    System.out.println("Tuple: Unknown comparision of the tuples");
-                    System.exit(1);
-                    return 0;
-                }
-                // Attribute is not equal (differences found)
-                // If Attribute is equal (continue to compare the next attribute)
-                if (comp != 0) {
-                    return comp;
+        // Initial loading
+        for (int i = 0; i < its.size(); i++) {
+            Iterator<Tuple> it = its.get(i);
+            while (it.hasNext()) {
+                Vector v = it.next().data();
+                if (!map.containsKey(v)) {
+                    // No duplicate, go to next iterator
+                    map.put(v, i);
+                    break;
                 }
             }
-            return 0;
-        };
+        }
+
+        // Polling of tuples and replacing
+        while (!map.isEmpty()) {
+            Map.Entry<Vector, Integer> outputVector = map.pollFirstEntry();
+            // Put in batch, write if full
+            output.add(new Tuple(outputVector.getKey()));
+            if (output.isFull()) {
+                pageNum++;
+                pageWrite(output, generateFileName(nextPass, run, pageNum));
+                output.clear();
+            }
+            // Replace with next tuple from that particular run
+            int index = outputVector.getValue();
+            Iterator<Tuple> it = its.get(index);
+            while (it.hasNext()) {
+                Vector v = it.next().data();
+                if (!map.containsKey(v)) {
+                    // No duplicate, go to next iterator
+                    map.put(v, index);
+                    break;
+                }
+            }
+        }
+
+        if (!output.isEmpty()) {
+            pageNum++;
+            pageWrite(output, generateFileName(nextPass, run, pageNum));
+            System.out.println(generateFileName(nextPass, run, pageNum));
+            Debug.PPrint(output);
+            output.clear();
+        }
+
+        return pageNum + 1;
     }
+
 
     /**
      * Read next tuple from operator
@@ -274,46 +342,43 @@ public class GroupBy extends Operator {
     }
 
     /**
-     * Read batch into input buffer.
-     *
-     * @param fileName name of the file to be read
-     * @return True if page has been read into input buffer
-     */
-    private boolean pageRead(Batch b, String fileName) {
-        ObjectInputStream in;
-        try {
-            in = new ObjectInputStream(new FileInputStream(fileName));
-        } catch (IOException io) {
-            System.err.println("Group By : error in reading the file === " + fileName);
-            return false;
-        }
-
-        try {
-            b = (Batch) in.readObject();
-            in.close();
-        } catch (EOFException e) {
-            try {
-                in.close();
-            } catch (IOException io) {
-                System.out.println("Group By :Error in temporary file reading === " + fileName);
-            }
-        } catch (ClassNotFoundException c) {
-            System.out.println("Group By :Some error in deserialization  === " + fileName);
-            System.exit(1);
-        } catch (IOException io) {
-            System.out.println("Group By :temporary file reading error  === " + fileName);
-            System.exit(1);
-        }
-
-        return true;
-    }
-
-    /**
      * File name generator to standardize file name used in I/O
      *
      * @return file name generated
      */
     private String generateFileName(int passNum, int runNum, int pageNum) {
         return String.format("GBtemp%d-pass%d-run%d.%d", currentFileNum, passNum, runNum, pageNum);
+    }
+
+    private String generateFileNamePrefix(int passNum, int runNum) {
+        return String.format("GBtemp%d-pass%d-run%d.", currentFileNum, passNum, runNum);
+    }
+
+    private Comparator<Vector> getComparator() {
+        return (x, y) -> {
+            for (int i = 0; i < x.size(); i++) {
+                Object leftdata = x.get(i);
+                Object rightdata = y.get(i);
+                int comp = 0;
+                if (leftdata instanceof Integer) {
+                    comp = ((Integer) leftdata).compareTo((Integer) rightdata);
+                } else if (leftdata instanceof String) {
+                    comp = ((String) leftdata).compareTo((String) rightdata);
+
+                } else if (leftdata instanceof Float) {
+                    comp = ((Float) leftdata).compareTo((Float) rightdata);
+                } else {
+                    System.out.println("Tuple: Unknown comparision of the tuples");
+                    System.exit(1);
+                    return 0;
+                }
+                // Attribute is not equal (differences found)
+                // If Attribute is equal (continue to compare the next attribute)
+                if (comp != 0) {
+                    return comp;
+                }
+            }
+            return 0;
+        };
     }
 }
