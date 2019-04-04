@@ -33,7 +33,7 @@ public class GroupBy extends Operator {
     int numBuffer;
 
     static int filenum = -1;   // To get unique filenum for this operation
-    int currentFileNum; // Hash Join instance unique file num (to be used to generate output file name)
+    int currentFileNum; // Group Byi nstance unique file num (to be used to generate output file name)
     ArrayList<String> fileNames = new ArrayList<>(); // File names of all partitions generated during partition phase
     int pageCurs; // To resume page reading after each next
 
@@ -271,7 +271,7 @@ public class GroupBy extends Operator {
             fileNames.add(fileName);
             out.close();
         } catch (IOException io) {
-            System.out.println("Group By : writing the temporary file error === " + fileName);
+            System.out.println("Group By: writing the temporary file error === " + fileName);
             return false;
         }
         return true;
@@ -282,7 +282,7 @@ public class GroupBy extends Operator {
         try {
             in = new ObjectInputStream(new FileInputStream(fileName));
         } catch (IOException io) {
-            System.err.println("Hash Join : error in reading the file === " + fileName);
+            System.err.println("Group By: error in reading the file === " + fileName);
             return false;
         }
 
@@ -293,13 +293,13 @@ public class GroupBy extends Operator {
             try {
                 in.close();
             } catch (IOException io) {
-                System.out.println("Hash Join :Error in temporary file reading === " + fileName);
+                System.out.println("Group By: Error in temporary file reading === " + fileName);
             }
         } catch (ClassNotFoundException c) {
-            System.out.println("Hash Join :Some error in deserialization  === " + fileName);
+            System.out.println("Group By: Some error in deserialization  === " + fileName);
             System.exit(1);
         } catch (IOException io) {
-            System.out.println("Hash Join :temporary file reading error  === " + fileName);
+            System.out.println("Group By: temporary file reading error  === " + fileName);
             System.exit(1);
         }
 
