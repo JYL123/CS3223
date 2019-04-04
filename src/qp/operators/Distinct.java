@@ -94,6 +94,7 @@ public class Distinct extends SortMerge {
         return outPage;
     }
 
+    @Override
     public Object clone() {
         Operator newbase = (Operator) base.clone();
         Vector newAttr = (Vector) attrSet.clone();

@@ -104,7 +104,6 @@ public class SortMerge extends Operator {
 //            System.out.println("~~~~~~~~~~~~~~~~~` Merge sorted runs");
             mergeSortedFiles();
 
-
             try {
                 in = new ObjectInputStream(new FileInputStream(sortedFiles.get(0)));
             } catch (FileNotFoundException e) {
@@ -157,7 +156,7 @@ public class SortMerge extends Operator {
 
 
     /**
-     * recursively merge until the last run is left
+     * recursively merge until only left with the last run
      **/
     private void mergeSortedFiles() {
         int numInputBuffer = numBuff - 1;
@@ -319,7 +318,9 @@ public class SortMerge extends Operator {
         return resultFile;
     }
 
-
+    /**
+     * returns the index of the minimum tuple in the input buffer
+     **/
     private int getIndexOfMinTuple(ArrayList<Batch> inBuffers) {
         Tuple minTuple = null;
         int minIndex = 0;
@@ -350,6 +351,9 @@ public class SortMerge extends Operator {
         return minIndex;
     }
 
+    /**
+     * checks if all pages in the input buffer have been extracted, i.e. whether all pages are null
+     **/
     private boolean completesExtraction(ArrayList<Batch> inBuffers) {
         for (int i = 0; i < inBuffers.size(); i++) {
             if (inBuffers.get(i) != null) {
@@ -359,7 +363,9 @@ public class SortMerge extends Operator {
         return true;
     }
 
-
+    /**
+     * writes contents in the output buffer into output stream
+     **/
     private void writeToOutput(Batch outBuffer, ObjectOutputStream out) {
         try {
             out.writeObject(outBuffer);
@@ -369,6 +375,9 @@ public class SortMerge extends Operator {
         }
     }
 
+    /**
+     * initializes the output stream which writes into resultFile
+     **/
     private ObjectOutputStream initObjectOutputStream(File resultFile) {
         try {
             return new ObjectOutputStream(new FileOutputStream(resultFile, true));
@@ -380,6 +389,9 @@ public class SortMerge extends Operator {
         return null;
     }
 
+    /**
+     * returns next page if there are still pages available
+     **/
     private Batch getNextBatch(ObjectInputStream in) {
         try {
             Batch b = (Batch) in.readObject();
@@ -396,6 +408,9 @@ public class SortMerge extends Operator {
         return null;
     }
 
+    /**
+     * writes the pages of sorted run into the file
+     **/
     private File writeToFile(Block sortedRun, int numRuns) {
         try {
             File temp = new File("SMTemp-" + numRuns);
