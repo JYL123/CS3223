@@ -20,7 +20,6 @@ public class Batch implements Serializable {
         PageSize = size;
     }
 
-<<<<<<< HEAD
     /** get number of bytes per page **/
     public static int getPageSize() {
         return PageSize;
@@ -40,7 +39,6 @@ public class Batch implements Serializable {
     public Batch(int numtuple){
 		MAX_SIZE = numtuple;
 	    tuples = new Vector(MAX_SIZE);
->>>>>>> origin/NEW_DISTINCT
     }
 
     /** Number of tuples per page **/

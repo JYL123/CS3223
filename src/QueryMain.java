@@ -146,8 +146,7 @@ public class QueryMain {
                 System.exit(1);
             }
 
-        } catch (
-                Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -174,7 +173,6 @@ public class QueryMain {
         numAtts = schema.getNumCols();
 
         printSchema(schema);
-
         Batch resultbatch;
 
 
@@ -194,7 +192,7 @@ public class QueryMain {
         System.out.println("Execution time = " + executiontime);
 
 
-
+    }
 
 
     protected static void printTuple(Tuple t) {
@@ -211,13 +209,14 @@ public class QueryMain {
         out.println();
     }
 
-    protected static void printSchema(Schema schema) {
+    private static void printSchema(Schema schema) {
         for (int i = 0; i < numAtts; i++) {
             Attribute attr = schema.getAttribute(i);
             out.print(attr.getTabName() + "." + attr.getColName() + "  ");
         }
         out.println();
     }
+
 
 }
 
