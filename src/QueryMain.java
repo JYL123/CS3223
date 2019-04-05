@@ -57,6 +57,7 @@ public class QueryMain {
 
         /** parse the query **/
 
+<<<<<<< HEAD
 
         try {
             p.parse();
@@ -64,6 +65,16 @@ public class QueryMain {
             System.out.println("Exception occured while parsing");
             System.exit(1);
         }
+=======
+        try {
+            p.parse();
+        } catch (Exception e) {
+            System.out.println("Exception occured while parsing");
+            System.exit(1);
+        }
+
+        /** SQLQuery is the result of the parsing **/
+>>>>>>> NEW_DISTINCT
 
         SQLQuery sqlquery = p.getSQLQuery();
         int numJoin = sqlquery.getNumJoin();
@@ -77,9 +88,15 @@ public class QueryMain {
          buffers available
          **/
 
+<<<<<<< HEAD
         if (numJoin != 0 || isDistinct) {
             System.out.println("enter the number of buffers available");
 
+=======
+
+        if (numJoin != 0 || isDistinct) {
+            System.out.println("enter the number of buffers available");
+>>>>>>> NEW_DISTINCT
 
             try {
                 temp = in.readLine();
@@ -91,9 +108,13 @@ public class QueryMain {
         }
 
 
+<<<<<<< HEAD
         /**
          * Let check the number of buffers available is enough or not
          **/
+=======
+        /** Let check the number of buffers available is enough or not **/
+>>>>>>> NEW_DISTINCT
 
         int numBuff = BufferManager.getBuffersPerJoin();
         if (numJoin > 0 && numBuff < 3) {
@@ -103,6 +124,7 @@ public class QueryMain {
 
 
 /** This part is used When some random initial plan is required instead of comple optimized plan **/
+<<<<<<< HEAD
         /**
          * RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
          * Operator logicalroot = rip.prepareInitialPlan();
@@ -115,6 +137,25 @@ public class QueryMain {
 
         DynamicOptimizer ro = new DynamicOptimizer(sqlquery, numBuff);
         //RandomOptimizer ro = new RandomOptimizer(sqlquery);
+=======
+/**
+
+ RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
+ Operator logicalroot = rip.prepareInitialPlan();
+ PlanCost pc = new PlanCost();
+ int initCost = pc.getCost(logicalroot);
+ Debug.PPrint(logicalroot);
+ System.out.print("   "+initCost);
+ System.out.println();
+ **/
+
+
+        /** Use random Optimization algorithm to get a random optimized
+         execution plan
+         **/
+
+        RandomOptimizer ro = new RandomOptimizer(sqlquery);
+>>>>>>> NEW_DISTINCT
         Operator logicalroot = ro.getOptimizedPlan();
         if (logicalroot == null) {
             System.out.println("root is null");
@@ -122,9 +163,13 @@ public class QueryMain {
         }
 
 
+<<<<<<< HEAD
         /**
          * preparing the execution plan
          **/
+=======
+        /** preparing the execution plan **/
+>>>>>>> NEW_DISTINCT
 
         Operator root = RandomOptimizer.makeExecPlan(logicalroot);
 
@@ -137,6 +182,7 @@ public class QueryMain {
 /** Ask user whether to continue execution of the program **/
 
         System.out.println("enter 1 to continue, 0 to abort ");
+<<<<<<< HEAD
 
 
         try {
@@ -151,8 +197,18 @@ public class QueryMain {
         }
 
         long starttime = System.currentTimeMillis();
+=======
 
+>>>>>>> NEW_DISTINCT
 
+        try {
+            temp = in.readLine();
+            int flag = Integer.parseInt(temp);
+            if (flag == 0) {
+                System.exit(1);
+            }
+
+<<<<<<< HEAD
         if (root.open() == false) {
             System.out.println("Root: Error in opening of root");
             System.exit(1);
@@ -165,6 +221,13 @@ public class QueryMain {
             System.exit(1);
         }
 
+=======
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        long starttime = System.currentTimeMillis();
+>>>>>>> NEW_DISTINCT
 
         /**
          * print the schema of the result
@@ -172,6 +235,7 @@ public class QueryMain {
         Schema schema = root.getSchema();
         numAtts = schema.getNumCols();
 
+<<<<<<< HEAD
         printSchema(schema);
         Batch resultbatch;
 
@@ -186,11 +250,47 @@ public class QueryMain {
         }
         root.close();
         out.close();
+=======
+        if (root.open() == false) {
+            System.out.println("Root: Error in opening of root");
+            System.exit(1);
+        }
+        try {
+            out = new PrintWriter(new BufferedWriter(new FileWriter(resultfile)));
+        } catch (IOException io) {
+            System.out.println("QueryMain:error in opening result file: " + resultfile);
+            System.exit(1);
+        }
+
+
+        /** print the schema of the result **/
+        Schema schema = root.getSchema();
+        numAtts = schema.getNumCols();
+        printSchema(schema);
+        Batch resultbatch;
+
+
+        /** print each tuple in the result **/
+>>>>>>> NEW_DISTINCT
 
         long endtime = System.currentTimeMillis();
         double executiontime = (endtime - starttime) / 1000.0;
         System.out.println("Execution time = " + executiontime);
 
+<<<<<<< HEAD
+=======
+        while ((resultbatch = root.next()) != null) {
+            for (int i = 0; i < resultbatch.size(); i++) {
+                printTuple(resultbatch.elementAt(i));
+            }
+        }
+        root.close();
+        out.close();
+
+        long endtime = System.currentTimeMillis();
+        double executiontime = (endtime - starttime) / 1000.0;
+        System.out.println("Execution time = " + executiontime);
+>>>>>>> NEW_DISTINCT
 
     }
 
@@ -209,7 +309,11 @@ public class QueryMain {
         out.println();
     }
 
+<<<<<<< HEAD
     private static void printSchema(Schema schema) {
+=======
+    protected static void printSchema(Schema schema) {
+>>>>>>> NEW_DISTINCT
         for (int i = 0; i < numAtts; i++) {
             Attribute attr = schema.getAttribute(i);
             out.print(attr.getTabName() + "." + attr.getColName() + "  ");
