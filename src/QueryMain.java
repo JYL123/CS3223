@@ -57,6 +57,7 @@ public class QueryMain {
 
         /** parse the query **/
 
+
         try {
             p.parse();
         } catch (Exception e) {
@@ -64,10 +65,9 @@ public class QueryMain {
             System.exit(1);
         }
 
-        /** SQLQuery is the result of the parsing **/
-
         SQLQuery sqlquery = p.getSQLQuery();
         int numJoin = sqlquery.getNumJoin();
+        boolean isDistinct = sqlquery.isDistinct();
 
 
         /** If there are joins then assigns buffers to each join operator
@@ -77,9 +77,9 @@ public class QueryMain {
          buffers available
          **/
 
-
-        if (numJoin != 0) {
+        if (numJoin != 0 || isDistinct) {
             System.out.println("enter the number of buffers available");
+
 
             try {
                 temp = in.readLine();
@@ -91,7 +91,9 @@ public class QueryMain {
         }
 
 
-        /** Let check the number of buffers available is enough or not **/
+        /**
+         * Let check the number of buffers available is enough or not
+         **/
 
         int numBuff = BufferManager.getBuffersPerJoin();
         if (numJoin > 0 && numBuff < 3) {
@@ -101,16 +103,15 @@ public class QueryMain {
 
 
 /** This part is used When some random initial plan is required instead of comple optimized plan **/
-/**
-
- RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
- Operator logicalroot = rip.prepareInitialPlan();
- PlanCost pc = new PlanCost();
- int initCost = pc.getCost(logicalroot);
- Debug.PPrint(logicalroot);
- System.out.print("   "+initCost);
- System.out.println();
- **/
+        /**
+         * RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
+         * Operator logicalroot = rip.prepareInitialPlan();
+         * PlanCost pc = new PlanCost();
+         * int initCost = pc.getCost(logicalroot);
+         * Debug.PPrint(logicalroot);
+         * System.out.print("   "+initCost);
+         * System.out.println();
+         **/
 
         DynamicOptimizer ro = new DynamicOptimizer(sqlquery, numBuff);
         //RandomOptimizer ro = new RandomOptimizer(sqlquery);
@@ -121,7 +122,9 @@ public class QueryMain {
         }
 
 
-        /** preparing the execution plan **/
+        /**
+         * preparing the execution plan
+         **/
 
         Operator root = RandomOptimizer.makeExecPlan(logicalroot);
 
@@ -143,7 +146,8 @@ public class QueryMain {
                 System.exit(1);
             }
 
-        } catch (Exception e) {
+        } catch (
+                Exception e) {
             e.printStackTrace();
         }
 
@@ -156,16 +160,21 @@ public class QueryMain {
         }
         try {
             out = new PrintWriter(new BufferedWriter(new FileWriter(resultfile)));
-        } catch (IOException io) {
+        } catch (
+                IOException io) {
             System.out.println("QueryMain:error in opening result file: " + resultfile);
             System.exit(1);
         }
 
 
-        /** print the schema of the result **/
+        /**
+         * print the schema of the result
+         **/
         Schema schema = root.getSchema();
         numAtts = schema.getNumCols();
+
         printSchema(schema);
+
         Batch resultbatch;
 
 
@@ -184,7 +193,8 @@ public class QueryMain {
         double executiontime = (endtime - starttime) / 1000.0;
         System.out.println("Execution time = " + executiontime);
 
-    }
+
+
 
 
     protected static void printTuple(Tuple t) {

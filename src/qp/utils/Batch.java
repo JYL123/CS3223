@@ -20,9 +20,27 @@ public class Batch implements Serializable {
         PageSize = size;
     }
 
+<<<<<<< HEAD
     /** get number of bytes per page **/
     public static int getPageSize() {
         return PageSize;
+=======
+	/** Set number of bytes per page **/
+	public static void setPageSize(int size){
+		PageSize=size;
+	}
+
+	/** get number of bytes per page **/
+	public static int getPageSize(){
+		return PageSize;
+	}
+
+	/** Number of tuples per page **/
+
+    public Batch(int numtuple){
+		MAX_SIZE = numtuple;
+	    tuples = new Vector(MAX_SIZE);
+>>>>>>> origin/NEW_DISTINCT
     }
 
     /** Number of tuples per page **/
@@ -36,8 +54,14 @@ public class Batch implements Serializable {
         tuples.add(t);
     }
 
+<<<<<<< HEAD
     public int capacity() {
         return MAX_SIZE;
+=======
+    public int capacity(){
+	    return MAX_SIZE;
+
+>>>>>>> origin/NEW_DISTINCT
     }
 
     public void clear() {
@@ -68,8 +92,13 @@ public class Batch implements Serializable {
         tuples.remove(i);
     }
 
+<<<<<<< HEAD
     public void setElementAt(Tuple t, int i) {
         tuples.setElementAt(t, i);
+=======
+    public Tuple remove(int i){
+	return (Tuple) tuples.remove(i);
+>>>>>>> origin/NEW_DISTINCT
     }
 
     public int size() {
@@ -83,7 +112,15 @@ public class Batch implements Serializable {
             return false;
     }
 
+<<<<<<< HEAD
     public Iterator<Tuple> getIterator() {
         return tuples.iterator();
+=======
+    public boolean isFull(){
+	    if(size() == capacity())
+	        return true;
+	    else
+	        return false;
+>>>>>>> origin/NEW_DISTINCT
     }
 }

@@ -71,6 +71,7 @@ public class PlanCost{
 	    return getStatistics((Project)node);
 	}else if(node.getOpType() == OpType.SCAN){
 	    return getStatistics((Scan)node);
+<<<<<<< HEAD
 	}else if(node.getOpType() == OpType.GROUPBY) {
 		return getStatistics((GroupBy) node);
 	}
@@ -81,6 +82,16 @@ public class PlanCost{
 		// TODO: GROUPBY
     	return calculateCost(node.getBase());
 	}
+=======
+	}
+//	else if(node.getOpType() == OpType.DISTINCT) {
+//	    return getStatistics((Distinct)node);
+//    }
+	return -1;
+    }
+>>>>>>> origin/NEW_DISTINCT
+
+
 
 
     /** projection will not change any statistics
@@ -89,6 +100,11 @@ public class PlanCost{
 
     protected int getStatistics(Project node){
 	return calculateCost(node.getBase());
+    }
+
+
+    private int getStatistics(Distinct node) {
+        return calculateCost(node.getBase());
     }
 
 
@@ -303,6 +319,8 @@ public class PlanCost{
 	//System.out.println("Scan: tablename="+tablename+"pres cost="+numpages+"total cost="+cost);
 	return numtuples;
     }
+
+
 
 }
 
