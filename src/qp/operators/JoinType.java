@@ -12,14 +12,14 @@ public class JoinType{
 
 
 
-   public static final int NESTEDJOIN = 2;
-   public static final int BLOCKNESTED = 0;
-   public static final int HASHJOIN = 1;
+   public static final int NESTEDJOIN = 1;
+   public static final int BLOCKNESTED = 2;
+   public static final int HASHJOIN = 0;
    public static final int SORTMERGE = 7;
-   public static final int INDEXNESTED = 8;
+   //public static final int INDEXNESTED = 8;
 
    public static int numJoinTypes(){
-	return 1;
+	return 3;
     //TODO
         // return k for k joins
     }

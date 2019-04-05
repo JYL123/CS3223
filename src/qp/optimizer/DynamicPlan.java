@@ -1,4 +1,4 @@
-/** prepares a random initial plan for the given SQL query **/
+//** prepares a random initial plan for the given SQL query **/
 /** see the ReadMe file to understand this **/
 
 package qp.optimizer;
@@ -8,7 +8,7 @@ import java.lang.Math;
 import qp.operators.*;
 import qp.utils.*;
 import java.util.Vector;
-import java.util.BitSet;
+import javafx.util.Pair;
 import java.util.Hashtable;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -213,6 +213,7 @@ public class DynamicPlan{
 
         Join jn=null;
 
+        int nodeIndex = 0;
 
         /** to form all set of plans of size i, evaluate their cost, retain the cheapest plan for each combination**/
         for (int i = 2; i <= fromlist.size(); i ++) {
@@ -234,7 +235,7 @@ public class DynamicPlan{
             for (ArrayList<String> combination : combinations) {
 
                 System.out.println("We are looking at this plan: ");
-                for(String combo : combination) {
+                for (String combo : combination) {
                     System.out.print(combo + " ");
                 }
 
@@ -243,7 +244,7 @@ public class DynamicPlan{
                 ArrayList<String> minRhsJoin = new ArrayList<>();
                 double minCost = Double.MAX_VALUE;
 
-                ArrayList<ArrayList<ArrayList<String>>> plans= generatePlans(combination);
+                ArrayList<ArrayList<ArrayList<String>>> plans = generatePlans(combination);
 
                 /** debug the plans generated */
                 System.out.println("the number of plans: ");
@@ -265,68 +266,175 @@ public class DynamicPlan{
                     System.out.println("");
                 }
 
-                for (int j=0; j<plans.size(); j++) {
+
+                int conditionIndex = 0;
+                int joinMeth = 1;//default
+
+                for (int j = 0; j < plans.size(); j++) {
                     ArrayList<String> lhsJoin = plans.get(j).get(0);
                     ArrayList<String> rhsJoin = plans.get(j).get(1);
 
-                    double cost = joinPlanCost(lhsJoin, rhsJoin);
+                    Pair<Integer, Double> pair = joinPlanCost(lhsJoin, rhsJoin);
+
+                    Double cost = pair.getValue();
 
                     if (cost < minCost) {
                         minCost = cost;
                         // record down the lhs and rhs as well
                         minLhsJoin = lhsJoin;
                         minRhsJoin = rhsJoin;
+                        joinMeth = pair.getKey();
                     }
                 }
 
 
+                Condition cn = null;
+                boolean doesConditionExist = false;
+
+                for (int z = 0; z < joinlist.size(); z++)
+                {
+                    Condition temp = (Condition) joinlist.elementAt(z);
+
+                    // base table case
+                    if (minLhsJoin.size() == 1 && minRhsJoin.size() == 1)
+                    {
+                        if ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin))
+                                && (((Attribute)temp.getRhs()).getTabName()).equals(getCombinedTablesName(minLhsJoin)))
+                        {
+
+                            ArrayList<String> tempList;
+                            tempList = minRhsJoin;
+                            minRhsJoin = minLhsJoin;
+                            minLhsJoin= tempList;
+
+                            /** set the node*/
+                            Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
+                            Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
+
+                            cn = (Condition) temp.clone();
+                            jn = new Join(left,right,temp,OpType.JOIN);
+                            Schema newsche = left.getSchema().joinWith(right.getSchema());
+                            jn.setSchema(newsche);
+                            // method does not change as it is computed as lhs and rhs
+                            jn.setJoinType(joinMeth);
+                            jn.setNodeIndex(nodeIndex);
+                            modifyHashtable(left,jn);
+                            modifyHashtable(right,jn);
+
+                            doesConditionExist =  true;
+                            nodeIndex ++;
+
+                            // at least one base table each time in DP -- left deep tree
+                        } else if ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))
+                                && (((Attribute)temp.getRhs()).getTabName()).equals(getCombinedTablesName(minRhsJoin)))
+                        {
+                            /** set the node*/
+                            Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
+                            Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
+
+                            cn = (Condition) temp.clone();
+                            jn = new Join(left,right,temp,OpType.JOIN);
+                            Schema newsche = left.getSchema().joinWith(right.getSchema());
+                            jn.setSchema(newsche);
+                            // method does not change as it is computed as lhs and rhs
+                            jn.setJoinType(joinMeth);
+                            jn.setNodeIndex(nodeIndex);
+                            modifyHashtable(left,jn);
+                            modifyHashtable(right,jn);
+
+                            doesConditionExist =  true;
+                            nodeIndex++;
+                        } else {
+
+                        }
+
+                    } else
+                    {
+
+                        if ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin)) )
+                        {
+                            //&& (rhstable != null) &&rhstable.getSchema().getAttList().contains(temp.getLhs().getColName())
+
+                            /** set the node*/
+                            Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
+                            Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
+
+                            if ( left !=  null && right != null) {
+                                doesConditionExist = true;
+                                cn = (Condition) temp.clone();
+                                jn = new Join(left,right,temp,OpType.JOIN);
+                                System.out.println( " Debug: ");
+                                System.out.println(getCombinedTablesName(minLhsJoin));
+                                System.out.println(getCombinedTablesName(minRhsJoin));
+                                Schema newsche = null;
+                                newsche = left.getSchema().joinWith(right.getSchema());
+                                jn.setSchema(newsche);
+                                // method does not change as it is computed as lhs and rhs
+                                jn.setJoinType(joinMeth);
+                                jn.setNodeIndex(nodeIndex);
+                                modifyHashtable(left,jn);
+                                modifyHashtable(right,jn);
+                                nodeIndex++;
+                            }
+
+
+                        } else if ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))
+                        {
+                            //&& (lhstable != null) && lhstable.getSchema().getAttList().contains(((Attribute)temp.getRhs()).getColName())
+
+                            ArrayList<String> tempList;
+                            tempList = minRhsJoin;
+                            minRhsJoin = minLhsJoin;
+                            minLhsJoin= tempList;
+
+                            /** set the node*/
+                            Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
+                            Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
+
+                            if ( left !=  null && right != null) {
+                                doesConditionExist = true; // condition does not exist
+
+                                cn = (Condition) temp.clone();
+                                jn = new Join(left,right,temp,OpType.JOIN);
+                                System.out.println( " Debug: ");
+                                System.out.println(getCombinedTablesName(minLhsJoin));
+                                System.out.println(getCombinedTablesName(minRhsJoin));
+                                Schema newsche = null;
+                                newsche = left.getSchema().joinWith(right.getSchema());
+                                jn.setSchema(newsche);
+                                // method does not change as it is computed as lhs and rhs
+                                jn.setJoinType(joinMeth);
+                                jn.setNodeIndex(nodeIndex);
+                                modifyHashtable(left,jn);
+                                modifyHashtable(right,jn);
+
+                                nodeIndex++;
+                            }
+                        }
+                    }
+
+                    conditionIndex++;
+                }
+
+
+                if(cn == null && minLhsJoin.size() == 1 && minRhsJoin.size() == 1) continue;
+                else  System.out.println("conditionIndex is " + conditionIndex);
+
+                if(!doesConditionExist && (minLhsJoin.size() != 1 || minRhsJoin.size() != 1)) continue;
+
+                String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
+                //tab_op_hash.put(combinedName,jn);
+
                 /** record down the min cost for this combination*/
+                System.out.println("combination saved in cost table: " + getCombinedTablesName(combination));
+                System.out.println("saved min cost: " +minCost);
+                Collections.sort(combination);
                 costTable.put(combination, minCost);
                 /** record down the resultant table(tablename, number of tuples, schema) for this combination*/
                 jointTablesList.add(joinTables(minLhsJoin, minRhsJoin));
 
-                /** set the node*/
-                Operator left = (Operator) tab_op_hash.get(getCombinedTablesName(minLhsJoin));
-                Operator right = (Operator) tab_op_hash.get(getCombinedTablesName(minRhsJoin));
-
-
-                Condition cn = null;
-
-                int conditionIndex = 0;
-                for (int z = 0; z < joinlist.size(); z ++) {
-                    Condition temp = (Condition) joinlist.elementAt(z);
-                    if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))
-                            || ((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))){
-                        cn = temp;
-
-                        if((temp.getLhs().getTabName()).equals(getCombinedTablesName(minLhsJoin))) {
-                            jn = new Join(left,right,cn,OpType.JOIN);
-                            Schema newsche = left.getSchema().joinWith(right.getSchema());
-                            jn.setSchema(newsche);
-                            int joinMeth = getJoinMethod(minLhsJoin, minRhsJoin);
-                            jn.setJoinType(joinMeth);
-                            String combinedName = getCombinedTablesName(minLhsJoin, minRhsJoin);
-                            tab_op_hash.put(combinedName,jn);
-                        }
-                        if(((temp.getLhs().getTabName()).equals(getCombinedTablesName(minRhsJoin)))) {
-                            jn = new Join(right,left,cn,OpType.JOIN);
-                            Schema newsche = right.getSchema().joinWith(left.getSchema());
-                            jn.setSchema(newsche);
-                            int joinMeth = getJoinMethod(minRhsJoin, minLhsJoin);
-                            jn.setJoinType(joinMeth);
-                            String combinedName = getCombinedTablesName(minRhsJoin, minLhsJoin);
-                            tab_op_hash.put(combinedName,jn);
-                        }
-
-                        break;
-                    }
-                    conditionIndex++;
-                }
-                System.out.println("conditionIndex is " + conditionIndex);
-
-                // avoid cross product
-                if(cn == null) continue;
-
+                //PlanCost pc = new PlanCost();
+                //System.out.println("test plan cost: " + pc.getCost(jn));
             }
 
         }
@@ -337,6 +445,7 @@ public class DynamicPlan{
 
         if(numJoin !=0)
             root = jn;
+        Debug.PPrint(root);
 
     }
 
@@ -439,16 +548,27 @@ public class DynamicPlan{
         return (int) sortedMap.keySet().toArray()[0];
     }
 
-    private double joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan) {
+
+    //
+    private Pair<Integer, Double> joinPlanCost(ArrayList<String> lhsPlan, ArrayList<String> rhsPlan) {
         // sub-plan must always inside the cost table
         // get the sub-combination cost, with <arrayList, double> pair
-        double lhsPlanCost = costTable.get(lhsPlan);
-        double rhsPlanCost = costTable.get(rhsPlan);
+        double lhsPlanCost ;
+        double rhsPlanCost ;
+
+        if(costTable.containsKey(lhsPlan)) lhsPlanCost = costTable.get(lhsPlan);
+        else  lhsPlanCost = 1000000; //come large number that does not lead to overflow
+
+        if(costTable.containsKey(rhsPlan)) rhsPlanCost = costTable.get(rhsPlan);
+        else  rhsPlanCost = 1000000; //come large number that does not lead to overflow
+
 
         String lhsPlanName = getCombinedTablesName(lhsPlan);
         System.out.println("lhs plan name : " + lhsPlanName);
+        System.out.println("lhs plan cost : " + lhsPlanCost);
         String rhsPlanName = getCombinedTablesName(rhsPlan);
         System.out.println("rhs plan name : " + rhsPlanName);
+        System.out.println("rhs plan cost : " + rhsPlanCost);
 
         int lhspages= 0;
         int rhspages = 0;
@@ -458,25 +578,29 @@ public class DynamicPlan{
             if (table.getTableName().equals(rhsPlanName)) rhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
         }
 
-        int blocksSize = 3;
+        int blocksSize = (int) Math.ceil(numBuffer/numJoin);
 
         double nestedJoin = lhspages*rhspages + lhspages;
         double blockNested = ((int) Math.ceil(lhspages/blocksSize)*rhspages) + lhspages;
-        double sortMerge = Double.MAX_VALUE;
         double hashJoin = 3*(lhspages + rhspages);
 
         ArrayList<Double> costArray = new ArrayList<Double>();
         costArray.add(nestedJoin);
         costArray.add(blockNested);
         costArray.add(hashJoin);
-        costArray.add(sortMerge);
         Collections.sort(costArray);
 
         double totalcost = lhsPlanCost + rhsPlanCost + costArray.get(0);
         System.out.println("cost computed for this plan: " + totalcost);
 
+        int typeOfJoin = 0;
 
-        return totalcost;
+        if(costArray.get(0) == hashJoin) typeOfJoin = JoinType.BLOCKNESTED;
+        else if (costArray.get(0) == blockNested) typeOfJoin = JoinType.HASHJOIN;
+        else if (costArray.get(0) == nestedJoin) typeOfJoin = JoinType.NESTEDJOIN;
+
+
+        return new Pair(typeOfJoin, totalcost);
     }
 
     /** return a set of table's attriute, which will contain information used in cost computation*/
@@ -708,6 +832,3 @@ public class DynamicPlan{
         }
     }
 }
-
-
-
