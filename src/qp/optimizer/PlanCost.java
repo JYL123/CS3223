@@ -71,10 +71,11 @@ public class PlanCost{
 	    return getStatistics((Project)node);
 	}else if(node.getOpType() == OpType.SCAN){
 	    return getStatistics((Scan)node);
-<<<<<<< HEAD
 	}else if(node.getOpType() == OpType.GROUPBY) {
 		return getStatistics((GroupBy) node);
-	}
+	}else if(node.getOpType() == OpType.DISTINCT) {
+	    return getStatistics((Distinct)node);
+    }
 		return -1;
 	}
 
@@ -82,15 +83,12 @@ public class PlanCost{
 		// TODO: GROUPBY
     	return calculateCost(node.getBase());
 	}
-=======
-	}
-//	else if(node.getOpType() == OpType.DISTINCT) {
-//	    return getStatistics((Distinct)node);
-//    }
-	return -1;
-    }
->>>>>>> origin/NEW_DISTINCT
 
+
+
+    protected int getStatistics(Distinct node) {
+        return calculateCost(node.getBase());
+    }
 
 
 
@@ -102,10 +100,6 @@ public class PlanCost{
 	return calculateCost(node.getBase());
     }
 
-
-    private int getStatistics(Distinct node) {
-        return calculateCost(node.getBase());
-    }
 
 
 	/** calculates the statistics, and cost of join operation **/
