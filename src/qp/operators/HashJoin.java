@@ -452,7 +452,7 @@ public class HashJoin extends Join {
                 int hash = hashFn2(tuple, leftindex, hashTable.length);
                 if (hashTable[hash].isFull()) {
                     failedPartition.add(partitionNum);
-                    System.out.printf("Hash table (bucket: %d) is too small\n", hash);
+                    System.out.printf("Hash table (bucket: %d) is too small. To be recursively hashed.\n", hash);
                     return false;
                 }
                 hashTable[hash].insertElementAt(tuple, hashTable[hash].size());
@@ -479,14 +479,8 @@ public class HashJoin extends Join {
             lTupleCurs = i;
             /*System.out.printf("%d - Partition: %d/%d, Right-page: %d/%d, Right-tuple: %d/%d, Left-tuple: %d/%d",
                     filenum, partitionCurs,
-<<<<<<< HEAD
                     partitionLeftPageCounts.length-1, rPageCurs, partitionsRightPageCounts[partitionCurs]-1, rTupleCurs,
                     inputBuffer.size()-1, lTupleCurs, hashTable[hash].size()-1);*/
-=======
-                    partitionLeftPageCounts.length - 1, rPageCurs, partitionsRightPageCounts[partitionCurs] - 1,
-                    rTupleCurs,
-                    inputBuffer.size() - 1, lTupleCurs, hashTable[hash].size() - 1);
->>>>>>> origin/HashJoin-Recursive
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
                 // Return back to curs to continue search
                 //System.out.print(" == FOUND!");
@@ -553,9 +547,9 @@ public class HashJoin extends Join {
         s2.setSchema(right.schema);
         Join j = new Join(s1, s2, this.con, this.optype);
         j.setSchema(schema);
-        j.setJoinType(JoinType.NESTEDJOIN);
+        j.setJoinType(JoinType.BLOCKNESTED);
         j.setNumBuff(numBuff);
-        recursiveJoin = new NestedJoin(j);
+        recursiveJoin = new BlockNestedLoopsJoin(j);
         recursiveJoin.open();
     }
 
