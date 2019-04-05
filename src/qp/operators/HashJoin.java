@@ -35,12 +35,15 @@ public class HashJoin extends Join {
 
     final int PRIME1;
     final int PRIME2;
+    final int PRIME3;
+    final int PRIME4;
 
     static int filenum = -1;   // To get unique filenum for this operation
     int currentFileNum; // Hash Join instance unique file num (to be used to generate output file name)
     ArrayList<String> fileNames = new ArrayList<>(); // File names of all partitions generated during partition phase
     int[] partitionLeftPageCounts, partitionsRightPageCounts; // File count per partition
     List<Integer> failedPartition = new ArrayList<>();
+    int recusiveCount;
 
     int partitionCurs; // Current partition cursor
     int rPageCurs; // Current right page cursor
@@ -53,12 +56,44 @@ public class HashJoin extends Join {
         schema = jn.getSchema();
         jointype = jn.getJoinType();
         numBuff = jn.getNumBuff();
+        recusiveCount = 0;
         PRIME1 = RandNumb.randPrime();
         int tempPrime = RandNumb.randPrime();
         while (PRIME1 == tempPrime) {
             tempPrime = RandNumb.randPrime();
         }
         PRIME2 = tempPrime;
+        while (PRIME1 == tempPrime || PRIME2 == tempPrime) {
+            tempPrime = RandNumb.randPrime();
+        }
+        PRIME3 = tempPrime;
+        while (PRIME1 == tempPrime || PRIME2 == tempPrime || PRIME3 == tempPrime) {
+            tempPrime = RandNumb.randPrime();
+        }
+        PRIME4 = tempPrime;
+
+    }
+
+    public HashJoin(Join jn, int recusiveCount) {
+        super(jn.getLeft(), jn.getRight(), jn.getCondition(), jn.getOpType());
+        schema = jn.getSchema();
+        jointype = jn.getJoinType();
+        numBuff = jn.getNumBuff();
+        this.recusiveCount = recusiveCount;
+        PRIME1 = RandNumb.randPrime();
+        int tempPrime = RandNumb.randPrime();
+        while (PRIME1 == tempPrime) {
+            tempPrime = RandNumb.randPrime();
+        }
+        PRIME2 = tempPrime;
+        while (PRIME1 == tempPrime || PRIME2 == tempPrime) {
+            tempPrime = RandNumb.randPrime();
+        }
+        PRIME3 = tempPrime;
+        while (PRIME1 == tempPrime || PRIME2 == tempPrime || PRIME3 == tempPrime) {
+            tempPrime = RandNumb.randPrime();
+        }
+        PRIME4 = tempPrime;
     }
 
     public boolean open() {
@@ -189,7 +224,7 @@ public class HashJoin extends Join {
 
         done = true;
         close();
-        return  null;
+        return null;
     }
 
 
@@ -224,7 +259,8 @@ public class HashJoin extends Join {
      */
     private int hashFn1(Tuple t, int index, int bucketSize) {
         Object value = t.dataAt(index);
-        return (Objects.hash(value) * PRIME1) % bucketSize;
+        int h = Objects.hash(value);
+        return ((h * PRIME1) % PRIME2) % bucketSize;
     }
 
     /**
@@ -237,7 +273,9 @@ public class HashJoin extends Join {
      */
     private int hashFn2(Tuple t, int index, int bucketSize) {
         Object value = t.dataAt(index);
-        return (Objects.hash(value) * PRIME2) % bucketSize;
+        int h = Objects.hash(value);
+        return ((h * PRIME3) % PRIME4) % bucketSize;
+//        return (h * PRIME2) % bucketSize;
     }
 
     /**
@@ -425,10 +463,11 @@ public class HashJoin extends Join {
 
     /**
      * Find match in a bucket of the hash table.
-     * @param hashTable the hash table to be search in
+     *
+     * @param hashTable      the hash table to be search in
      * @param hashAttriIndex attribute index to be match against tuple in the hash table
-     * @param tuple search tuple
-     * @param tupleIndex attribute index to be match against for the tuple
+     * @param tuple          search tuple
+     * @param tupleIndex     attribute index to be match against for the tuple
      * @return matching joined tuple
      */
     private Tuple findMatchInHashtable(Batch[] hashTable, int hashAttriIndex, Tuple tuple, int tupleIndex) {
@@ -440,8 +479,9 @@ public class HashJoin extends Join {
             lTupleCurs = i;
             System.out.printf("%d - Partition: %d/%d, Right-page: %d/%d, Right-tuple: %d/%d, Left-tuple: %d/%d",
                     filenum, partitionCurs,
-                    partitionLeftPageCounts.length-1, rPageCurs, partitionsRightPageCounts[partitionCurs]-1, rTupleCurs,
-                    inputBuffer.size()-1, lTupleCurs, hashTable[hash].size()-1);
+                    partitionLeftPageCounts.length - 1, rPageCurs, partitionsRightPageCounts[partitionCurs] - 1,
+                    rTupleCurs,
+                    inputBuffer.size() - 1, lTupleCurs, hashTable[hash].size() - 1);
             if (tupleInHash.checkJoin(tuple, hashAttriIndex, tupleIndex)) {
                 // Return back to curs to continue search
                 System.out.print(" == FOUND!");
@@ -456,20 +496,26 @@ public class HashJoin extends Join {
         return null;
     }
 
-    HashJoin rhj;
+    Join recursiveJoin;
 
     private boolean recursiveHashJoin() {
         while (failedPartition.size() > 0) {
             int failedPartiNum = failedPartition.get(0);
-            if (rhj == null) {
-                setupRecursiveHJ(failedPartiNum);
+            if (recursiveJoin == null) {
+                if (recusiveCount > 3) {
+                    System.out.println("3 recursive hash joins has encountered lack of buffer in hash table. " +
+                            "Partition will be merged using block nested loop instead.");
+                    setupBJ(failedPartiNum);
+                } else {
+                    setupRecursiveHJ(failedPartiNum);
+                }
             }
 
-            this.outputBuffer = rhj.next();
+            this.outputBuffer = recursiveJoin.next();
             if (this.outputBuffer == null) {
                 failedPartition.remove(0);
-                rhj.close();
-                rhj = null;
+                recursiveJoin.close();
+                recursiveJoin = null;
             } else {
                 // Join tuples found
                 return true;
@@ -489,8 +535,23 @@ public class HashJoin extends Join {
         j.setSchema(schema);
         j.setJoinType(getJoinType());
         j.setNumBuff(numBuff);
-        rhj = new HashJoin(j);
-        rhj.open();
+        recursiveJoin = new HashJoin(j, recusiveCount + 1);
+        recursiveJoin.open();
+    }
+
+    private void setupBJ(int failedPartiNum) {
+        PartitionScan s1 = new PartitionScan(generateFileNamePrefix(failedPartiNum, true),
+                partitionLeftPageCounts[failedPartiNum], OpType.SCAN);
+        s1.setSchema(left.schema);
+        PartitionScan s2 = new PartitionScan(generateFileNamePrefix(failedPartiNum, false),
+                partitionsRightPageCounts[failedPartiNum], OpType.SCAN);
+        s2.setSchema(right.schema);
+        Join j = new Join(s1, s2, this.con, this.optype);
+        j.setSchema(schema);
+        j.setJoinType(JoinType.NESTEDJOIN);
+        j.setNumBuff(numBuff);
+        recursiveJoin = new NestedJoin(j);
+        recursiveJoin.open();
     }
 
 }
