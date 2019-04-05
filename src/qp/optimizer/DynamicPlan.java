@@ -37,6 +37,7 @@ public class DynamicPlan {
     Vector groupbylist;
     int numJoin;    // Number of joins in this query
     int numBuffer;
+    boolean isDistinct;
 
 
     Hashtable tab_op_hash;          //table name to the Operator
@@ -61,6 +62,7 @@ public class DynamicPlan {
         groupbylist = sqlquery.getGroupByList();
         numJoin = joinlist.size();
         this.numBuffer = numBuffer;
+        isDistinct = sqlquery.isDistinct();
 
         if (numJoin != 0) {
 
@@ -127,6 +129,8 @@ public class DynamicPlan {
         }
 
         createProjectOp();
+        createDistinctOp();
+        createGroupbyOp();
 
         Debug.PPrint(root);
         PlanCost pc = new PlanCost();
@@ -135,6 +139,51 @@ public class DynamicPlan {
         return root;
     }
 
+
+
+    public void createGroupbyOp() {
+        // TODO: GROUPBY DONE
+        Operator base = root;
+        if (groupbylist == null)
+            groupbylist = new Vector();
+
+        if (!groupbylist.isEmpty()) {
+            root = new GroupBy(base, groupbylist, OpType.GROUPBY);
+            Schema newSchema = base.getSchema().subSchema(groupbylist);
+            root.setSchema(newSchema);
+        }
+    }
+
+
+    private void createDistinctOp() {
+        Operator base = root;
+
+        if (isDistinct) {
+            if (projectlist == null) {
+                projectlist = new Vector();
+            }
+
+            if (!projectlist.isEmpty()) {
+                root = new Distinct(base, projectlist, OpType.DISTINCT);
+                Schema newSchema = base.getSchema().subSchema(projectlist);
+                root.setSchema(newSchema);
+            }
+        }
+//        if (isDistinct) {
+//            Schema newSchema;
+//            if (projectlist.isEmpty()) {
+//                projectlist = base.getSchema().getAttList();
+//                newSchema = base.getSchema();
+//            } else {
+//                newSchema = base.getSchema().subSchema(projectlist);
+//            }
+//            root = new Distinct(base, projectlist, OpType.DISTINCT);
+//            root.setSchema(newSchema);
+//        }
+
+
+
+    }
 
     /** Create Scan Operator for each of the table
      ** mentioned in from list
