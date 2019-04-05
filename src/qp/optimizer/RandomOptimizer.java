@@ -8,10 +8,7 @@ package qp.optimizer;
 import qp.utils.*;
 import qp.operators.*;
 
-<<<<<<< HEAD
-=======
 import java.lang.Math;
->>>>>>> origin/NEW_DISTINCT
 import java.util.Vector;
 
 public class RandomOptimizer {
@@ -111,10 +108,7 @@ public class RandomOptimizer {
                 while (flag) {   // flag = false when local minimum is reached
                     System.out.println("---------------while--------");
                     Operator initPlanCopy = (Operator) initPlan.clone();
-<<<<<<< HEAD
-=======
                     boolean DEBUG = (initPlanCopy == null);
->>>>>>> origin/NEW_DISTINCT
                     minNeighbor = getNeighbor(initPlanCopy);
 
                     System.out.println("--------------------------neighbor---------------");
@@ -167,10 +161,7 @@ public class RandomOptimizer {
         }
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
-<<<<<<< HEAD
         //finalPlan = getNeighbor(finalPlan);
-=======
->>>>>>> origin/NEW_DISTINCT
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
@@ -207,11 +198,8 @@ public class RandomOptimizer {
     protected Operator neighborCommut(Operator root, int joinNum) {
         System.out.println("------------------neighbor by commutative---------------");
         /** find the node to be altered**/
-<<<<<<< HEAD
-=======
         System.out.println("******************neighborCommut************************");
         Debug.PPrint(root);
->>>>>>> origin/NEW_DISTINCT
         Join node = (Join) findNodeAt(root, joinNum);
         Operator left = node.getLeft();
         Operator right = node.getRight();
@@ -234,11 +222,8 @@ public class RandomOptimizer {
 
     protected Operator neighborAssoc(Operator root, int joinNum) {
         /** find the node to be altered**/
-<<<<<<< HEAD
-=======
         System.out.println("****************neighborAssoc**************************");
         Debug.PPrint(root);
->>>>>>> origin/NEW_DISTINCT
         Join op = (Join) findNodeAt(root, joinNum);
         //Join op = (Join) joinOpList.elementAt(joinNum);
         Operator left = op.getLeft();
@@ -375,14 +360,10 @@ public class RandomOptimizer {
             return findNodeAt(((Select) node).getBase(), joinNum);
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
-<<<<<<< HEAD
         } else if (node.getOpType() == OpType.GROUPBY) {
-            // TODO: GROUPBY DONE
             return findNodeAt(((GroupBy) node).getBase(), joinNum);
-=======
         } else if (node.getOpType() == OpType.DISTINCT) {
             return findNodeAt(((Distinct) node).getBase(), joinNum);
->>>>>>> origin/NEW_DISTINCT
         } else {
             return null;
         }
@@ -408,19 +389,15 @@ public class RandomOptimizer {
             modifySchema(base);
             Vector attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
-<<<<<<< HEAD
         } else if (node.getOpType() == OpType.GROUPBY) {
-            // TODO: GROUPBY DONE
             Operator base = ((GroupBy) node).getBase();
             modifySchema(base);
             Vector attrlist = ((GroupBy) node).getGroupAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
-=======
         } else if (node.getOpType() == OpType.DISTINCT) {
             Operator base = ((Distinct) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
->>>>>>> origin/NEW_DISTINCT
         }
     }
 
@@ -431,10 +408,7 @@ public class RandomOptimizer {
      **/
 
     public static Operator makeExecPlan(Operator node) {
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/NEW_DISTINCT
         if (node.getOpType() == OpType.JOIN) {
             Operator left = makeExecPlan(((Join) node).getLeft());
             Operator right = makeExecPlan(((Join) node).getRight());
@@ -442,13 +416,9 @@ public class RandomOptimizer {
             int numbuff = BufferManager.getBuffersPerJoin();
             switch (joinType) {
                 case JoinType.NESTEDJOIN:
-<<<<<<< HEAD
                     NestedJoin nj = new NestedJoin((Join) node);
                     //System.out.println("I am not nested join");
-=======
 
-                    NestedJoin nj = new NestedJoin((Join) node);
->>>>>>> origin/NEW_DISTINCT
                     nj.setLeft(left);
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
@@ -458,7 +428,6 @@ public class RandomOptimizer {
                  replace with hasjoin, if implemented **/
 
                 case JoinType.BLOCKNESTED:
-<<<<<<< HEAD
                     //NestedJoin bj = new NestedJoin((Join) node);
                     BlockNestedLoopsJoin bj = new BlockNestedLoopsJoin((Join) node);
                     bj.setLeft(left);
@@ -475,11 +444,7 @@ public class RandomOptimizer {
                     hj.setLeft(left);
                     hj.setRight(right);
                     hj.setNumBuff(numbuff);
-=======
-
-                    NestedJoin bj = new NestedJoin((Join) node);
-                    /* + other code */
-                    return bj;
+                    return hj;
 
                 case JoinType.SORTMERGE:
 
@@ -487,12 +452,7 @@ public class RandomOptimizer {
                     /* + other code */
                     return sm;
 
-                case JoinType.HASHJOIN:
 
-                    NestedJoin hj = new NestedJoin((Join) node);
-                    /* + other code */
->>>>>>> origin/NEW_DISTINCT
-                    return hj;
                 default:
                     return node;
             }
@@ -504,14 +464,10 @@ public class RandomOptimizer {
             Operator base = makeExecPlan(((Project) node).getBase());
             ((Project) node).setBase(base);
             return node;
-<<<<<<< HEAD
         } else if (node.getOpType() == OpType.GROUPBY) {
-            // TODO: GROUPBY DONE
             Operator base = makeExecPlan(((GroupBy) node).getBase());
             ((GroupBy) node).setBase(base);
             return node;
-        }else {
-=======
         } else if (node.getOpType() == OpType.DISTINCT) {
             int numBuff = BufferManager.getNumBuffer();
             Operator base = makeExecPlan(((Distinct) node).getBase());
@@ -519,7 +475,6 @@ public class RandomOptimizer {
             ((Distinct) node).setNumBuff(numBuff);
             return node;
         } else {
->>>>>>> origin/NEW_DISTINCT
             return node;
         }
     }
