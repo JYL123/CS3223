@@ -19,9 +19,7 @@ public class JoinType{
    //public static final int INDEXNESTED = 8;
 
    public static int numJoinTypes(){
-	return 3;
-    //TODO
-        // return k for k joins
+	    return 3;
     }
 
 }

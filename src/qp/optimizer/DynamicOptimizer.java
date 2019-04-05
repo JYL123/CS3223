@@ -50,13 +50,11 @@ public class DynamicOptimizer{
 
                     BlockNestedLoopsJoin bj = new BlockNestedLoopsJoin((Join) node);
                     /* + other code */
+                    bj.setLeft(left);
+                    bj.setRight(right);
+                    bj.setNumBuff(numbuff);
                     return bj;
 
-                case JoinType.SORTMERGE:
-
-                    NestedJoin sm = new NestedJoin((Join) node);
-                    /* + other code */
-                    return sm;
 
                 case JoinType.HASHJOIN:
 

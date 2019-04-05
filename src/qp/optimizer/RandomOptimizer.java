@@ -8,7 +8,6 @@ package qp.optimizer;
 import qp.utils.*;
 import qp.operators.*;
 
-import java.lang.Math;
 import java.util.Vector;
 
 public class RandomOptimizer {
@@ -355,6 +354,9 @@ public class RandomOptimizer {
             return findNodeAt(((Select) node).getBase(), joinNum);
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            // TODO: GROUPBY DONE
+            return findNodeAt(((GroupBy) node).getBase(), joinNum);
         } else {
             return null;
         }
@@ -380,6 +382,12 @@ public class RandomOptimizer {
             modifySchema(base);
             Vector attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            // TODO: GROUPBY DONE
+            Operator base = ((GroupBy) node).getBase();
+            modifySchema(base);
+            Vector attrlist = ((GroupBy) node).getGroupAttr();
+            node.setSchema(base.getSchema().subSchema(attrlist));
         }
     }
 
@@ -390,7 +398,6 @@ public class RandomOptimizer {
      **/
 
     public static Operator makeExecPlan(Operator node) {
-
         if (node.getOpType() == OpType.JOIN) {
             Operator left = makeExecPlan(((Join) node).getLeft());
             Operator right = makeExecPlan(((Join) node).getRight());
@@ -437,7 +444,12 @@ public class RandomOptimizer {
             Operator base = makeExecPlan(((Project) node).getBase());
             ((Project) node).setBase(base);
             return node;
-        } else {
+        } else if (node.getOpType() == OpType.GROUPBY) {
+            // TODO: GROUPBY DONE
+            Operator base = makeExecPlan(((GroupBy) node).getBase());
+            ((GroupBy) node).setBase(base);
+            return node;
+        }else {
             return node;
         }
     }

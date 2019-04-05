@@ -574,8 +574,22 @@ public class DynamicPlan{
         int rhspages = 0;
 
         for (Table table : jointTablesList) {
-            if (table.getTableName().equals(lhsPlanName)) lhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
-            if (table.getTableName().equals(rhsPlanName)) rhspages = (int) Math.ceil(table.getNumTuples()/Batch.getPageSize());
+
+            int numTuplesPerBatch = (int) Math.ceil(table.getNumTuples()/(Batch.getPageSize()/table.getSchema().getTupleSize()));
+
+            System.out.println("numTuplesPerBatch : " + numTuplesPerBatch);
+
+            // means the table is not in the join table list
+            if((table.getTableName().equals(lhsPlanName) || table.getTableName().equals(rhsPlanName)) && numTuplesPerBatch == 0)
+            {
+
+                int randomMeth = RandNumb.randInt(0,2);
+                return new Pair(randomMeth, 1000000.0);
+
+            }
+
+            if (table.getTableName().equals(lhsPlanName)) lhspages = (int) Math.ceil(table.getNumTuples()/numTuplesPerBatch);
+            if (table.getTableName().equals(rhsPlanName)) rhspages = (int) Math.ceil(table.getNumTuples()/numTuplesPerBatch);
         }
 
         int blocksSize = (int) Math.ceil(numBuffer/numJoin);
@@ -590,14 +604,22 @@ public class DynamicPlan{
         costArray.add(hashJoin);
         Collections.sort(costArray);
 
+        System.out.println("LHS pages  " + lhspages);
+        System.out.println("RHS pages  " + rhspages);
+
+        System.out.println("Nested join cost " + nestedJoin);
+        System.out.println("Hash join cost " + hashJoin);
+        System.out.println("block nested join cost " + blockNested);
+
         double totalcost = lhsPlanCost + rhsPlanCost + costArray.get(0);
         System.out.println("cost computed for this plan: " + totalcost);
 
-        int typeOfJoin = 0;
+        int typeOfJoin = JoinType.BLOCKNESTED;
 
-        if(costArray.get(0) == hashJoin) typeOfJoin = JoinType.BLOCKNESTED;
-        else if (costArray.get(0) == blockNested) typeOfJoin = JoinType.HASHJOIN;
+        if(costArray.get(0) == hashJoin) typeOfJoin = JoinType.HASHJOIN;
         else if (costArray.get(0) == nestedJoin) typeOfJoin = JoinType.NESTEDJOIN;
+        else if (costArray.get(0) == blockNested) typeOfJoin = JoinType.BLOCKNESTED;
+
 
 
         return new Pair(typeOfJoin, totalcost);
@@ -773,7 +795,10 @@ public class DynamicPlan{
 
             int numTuplesPerPage = (int) Math.ceil(Batch.getPageSize()/jointTablesList.get(i).getSchema().getTupleSize());
             System.out.println("The number of tuple per page : " + jointTablesList.get(i).getSchema().getTupleSize());
-            double cost =jointTablesList.get(i).getNumTuples()/numTuplesPerPage;
+
+            double cost;
+            if (numTuplesPerPage == 0) cost =1000000.0;
+            else cost =jointTablesList.get(i).getNumTuples()/numTuplesPerPage;
 
             costTable.put(tableCombo, cost);
         }

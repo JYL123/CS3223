@@ -71,10 +71,16 @@ public class PlanCost{
 	    return getStatistics((Project)node);
 	}else if(node.getOpType() == OpType.SCAN){
 	    return getStatistics((Scan)node);
-
+	}else if(node.getOpType() == OpType.GROUPBY) {
+		return getStatistics((GroupBy) node);
 	}
-	return -1;
-    }
+		return -1;
+	}
+
+    protected int getStatistics(GroupBy node) {
+		// TODO: GROUPBY
+    	return calculateCost(node.getBase());
+	}
 
 
     /** projection will not change any statistics
