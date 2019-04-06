@@ -15,3 +15,7 @@ There are some implementation consideration to be noted:
 the program will think the plan with hash join is infeasible, and the plan will choose Block Nested Loop instead.
 
   * This is due to, first, the limitation of the hash function, given a huge number of values the possibility of collision is high, second the number of duplicated values.
+
+ To get started with this project as a `user`, please follow [this link](https://www.comp.nus.edu.sg/~tankl/cs3223/project/user.htm) 
+
+  To get started with this project as a `developer`, please follow [this link](https://www.comp.nus.edu.sg/~tankl/cs3223/project/developer.htm) 
