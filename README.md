@@ -1,7 +1,7 @@
 # CS3223
 ### CS3223 Project
 
-This project is a simple `SPJ` (Select-Project-Join) query engine, which consist of the following features:
+This project is a simple `SPJ` (Select-Project-Join) query engine, which consists of the following features:
 * Dynamic optimizer
 * Random optimizer
 * Distinct
